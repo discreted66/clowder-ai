@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -691,10 +691,8 @@ export function ChatInput({
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder={
-                  whisperMode ? '悄悄话...' : hasActiveInvocation ? '继续输入，消息会排队...' : '输入消息... (@ 召唤猫猫)'
-                }
-                className={`block h-[100px] w-full resize-none rounded-xl border p-3 pr-24 text-sm focus:outline-none focus:ring-2 placeholder:text-gray-400 ${
+                placeholder="描述你想研究的主题或@助手协助工作"
+                className={`block h-[100px] w-full resize-none rounded-2xl border p-3 pr-24 text-sm focus:outline-none focus:ring-2 placeholder:text-gray-400 ${
                   whisperMode
                     ? 'border-amber-300 bg-amber-50/50 focus:ring-amber-400'
                     : 'border-cocreator-light bg-white focus:ring-cocreator-primary'
@@ -714,11 +712,11 @@ export function ChatInput({
                   <span className="text-gray-400">{ghostSuggestion.slice(input.length)}</span>
                 </div>
               )}
-              <div className="absolute bottom-2 right-2 hidden items-center gap-1 md:flex">
+              <div className="absolute bottom-2 right-2 hidden items-center gap-2 md:flex">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={disabled || sendTemporarilyDisabled || images.length >= 5}
-                  className="rounded-lg p-[6px] text-gray-400 transition-colors hover:bg-white hover:text-cocreator-primary disabled:cursor-not-allowed disabled:opacity-30"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white hover:text-cocreator-primary disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Attach images"
                 >
                   <AttachIcon className="h-5 w-5" />

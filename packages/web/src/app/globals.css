@@ -600,5 +600,30 @@ body {
   color: #e2e8f0;
 }
 
+/* Chat input scrollbar: slim thumb, no arrow buttons */
+.chat-input-textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 41, 55, 0.32) transparent;
+}
+
+.chat-input-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-input-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-input-textarea::-webkit-scrollbar-thumb {
+  background: rgba(31, 41, 55, 0.32);
+  border-radius: 9999px;
+}
+
+.chat-input-textarea::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 
 

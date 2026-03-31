@@ -456,6 +456,7 @@ export function ChatContainer({ threadId }: ChatContainerProps) {
             onToggleSidebar={() => setSidebarOpen((v) => !v)}
             threadId={threadId}
             authPendingCount={authPending.length}
+            targetCats={targetCats}
             viewMode={viewMode}
             onToggleViewMode={() => setViewMode(viewMode === 'single' ? 'split' : 'single')}
             onOpenMobileStatus={() => setMobileStatusOpen(true)}

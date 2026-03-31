@@ -32,6 +32,71 @@ import { PathCompletionMenu } from './PathCompletionMenu';
 /** Module-level draft storage — survives component unmount/remount across thread switches */
 export const threadDrafts = new Map<string, string>();
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+type QuickActionId = 'doc' | 'video' | 'research' | 'slides' | 'analysis' | 'visualization' | 'finance';
+
+const QUICK_ACTION_ITEMS: ReadonlyArray<{ id: QuickActionId; label: string }> = [
+  { id: 'doc', label: '文档处理' },
+  { id: 'video', label: '视频生成' },
+  { id: 'research', label: '深度研究' },
+  { id: 'slides', label: '幻灯片' },
+  { id: 'analysis', label: '数据分析' },
+  { id: 'visualization', label: '数据可视化' },
+  { id: 'finance', label: '金融服务' },
+];
+
+function QuickActionIcon({ id, className }: { id: QuickActionId; className?: string }) {
+  switch (id) {
+    case 'doc':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M6 2a1 1 0 00-1 1v14a1 1 0 001 1h8a1 1 0 001-1V7l-4-5H6zm5 1.5L13.5 7H11V3.5zM8 10h4a1 1 0 110 2H8a1 1 0 010-2zm0 3h4a1 1 0 110 2H8a1 1 0 110-2z" />
+        </svg>
+      );
+    case 'video':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2H4zm13.4 2.2L15 7.8v4.4l2.4 1.6a1 1 0 001.6-.8V7a1 1 0 00-1.6-.8z" />
+        </svg>
+      );
+    case 'research':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M9 2a7 7 0 105.29 11.58l2.56 2.56a1 1 0 001.42-1.42l-2.56-2.56A7 7 0 009 2zm0 2a5 5 0 110 10A5 5 0 019 4z" />
+        </svg>
+      );
+    case 'slides':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm3 11h8v1a2 2 0 11-4 0 2 2 0 11-4 0v-1z" />
+        </svg>
+      );
+    case 'analysis':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M3 16a1 1 0 001 1h12a1 1 0 100-2H4a1 1 0 00-1 1zm2-2h2V8H5v6zm4 0h2V5H9v9zm4 0h2v-4h-2v4z" />
+        </svg>
+      );
+    case 'visualization':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M4 4a1 1 0 000 2h12a1 1 0 100-2H4zm0 5a1 1 0 000 2h7a1 1 0 100-2H4zm0 5a1 1 0 100 2h4a1 1 0 100-2H4zm10.7-3.3a1 1 0 00-1.4 1.4l.3.3H13a1 1 0 100 2h2.5l-.3.3a1 1 0 101.4 1.4l2-2a1 1 0 000-1.4l-2-2z" />
+        </svg>
+      );
+    case 'finance':
+      return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M10 2a1 1 0 011 1v1.1c1.7.2 3 1.3 3 2.9a1 1 0 11-2 0c0-.5-.6-1-1.5-1h-1c-.9 0-1.5.5-1.5 1s.6 1 1.5 1h1c2 0 3.5 1.2 3.5 3s-1.3 2.8-3 3V17a1 1 0 11-2 0v-1.1c-1.7-.2-3-1.3-3-2.9a1 1 0 112 0c0 .5.6 1 1.5 1h1c.9 0 1.5-.5 1.5-1s-.6-1-1.5-1h-1C7.5 12 6 10.8 6 9s1.3-2.8 3-3V3a1 1 0 011-1z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 interface ChatInputProps {
   /** Thread ID for draft persistence — drafts are saved per-thread */
   threadId?: string;
@@ -57,6 +122,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const { cats } = useCatData();
   const catOptions = useMemo(() => buildCatOptions(cats), [cats]);
+  const replaceThreadTargetCats = useChatStore((s) => s.replaceThreadTargetCats);
   const whisperOptions = useMemo(() => buildWhisperOptions(cats), [cats]);
 
   // F122B AC-B10: track which cats are actively executing (for whisper disable)
@@ -119,7 +185,7 @@ export function ChatInput({
     });
   }, []);
 
-  const handleQuickAction = useCallback((text: (typeof QUICK_ACTIONS)[number]) => {
+  const handleQuickAction = useCallback((text: string) => {
     setInput(text);
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
@@ -165,7 +231,16 @@ export function ChatInput({
         setShowGameMenu(false);
       }
     },
-    [input, disabled, onSend, images, sendTemporarilyDisabled, whisperMode, whisperTargets, addHistoryEntry],
+    [
+      input,
+      disabled,
+      onSend,
+      images,
+      sendTemporarilyDisabled,
+      whisperMode,
+      whisperTargets,
+      addHistoryEntry,
+    ],
   );
 
   const handleSend = useCallback(() => doSend(undefined), [doSend]);
@@ -242,6 +317,17 @@ export function ChatInput({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const val = e.target.value;
       setInput(val);
+      if (threadId) {
+        const mentionedCatIds = catOptions
+          .filter((opt) => {
+            const mentionToken = opt.insert.trim();
+            if (!mentionToken.startsWith('@')) return false;
+            const re = new RegExp(`(^|\\s)${escapeRegExp(mentionToken)}(?=\\s|$)`, 'i');
+            return re.test(val);
+          })
+          .map((opt) => opt.id);
+        replaceThreadTargetCats(threadId, mentionedCatIds);
+      }
       const trigger = detectMenuTrigger(val, e.target.selectionStart);
       if (trigger?.type === 'game') {
         setShowGameMenu(true);
@@ -259,7 +345,7 @@ export function ChatInput({
         setMentionFilter('');
       }
     },
-    [closeMenus],
+    [catOptions, closeMenus, replaceThreadTargetCats, threadId],
   );
 
   const handleHistorySelect = useCallback(
@@ -556,6 +642,11 @@ export function ChatInput({
       <ChatInputMenus
         catOptions={filteredCatOptions}
         showMentions={showMentions}
+        mentionFilter={mentionFilter}
+        onMentionFilterChange={(value) => {
+          setMentionFilter(value);
+          setSelectedIdx(0);
+        }}
         showGameMenu={showGameMenu}
         gameStep={gameStep}
         onGameStepChange={setGameStep}
@@ -670,16 +761,17 @@ export function ChatInput({
         <div className="flex-1">
           <div className="mx-auto w-[80%]">
             <div className="mb-2 flex flex-wrap gap-2">
-              {QUICK_ACTIONS.map((action) => (
+              {QUICK_ACTION_ITEMS.map((action) => (
                 <button
-                  key={action}
+                  key={action.id}
                   type="button"
-                  onClick={() => handleQuickAction(action)}
+                  onClick={() => handleQuickAction(action.label)}
                   disabled={disabled}
-                  className="rounded-[20px] border bg-white px-3 py-1.5 text-sm text-black transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-[20px] border bg-white px-3 py-1.5 text-sm text-black transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ borderColor: 'rgba(219,219,219,0.8)' }}
                 >
-                  {action}
+                  <QuickActionIcon id={action.id} className="h-4 w-4" />
+                  <span>{action.label}</span>
                 </button>
               ))}
             </div>
@@ -692,9 +784,13 @@ export function ChatInput({
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder={
-                  whisperMode ? '悄悄话...' : hasActiveInvocation ? '继续输入，消息会排队...' : '输入消息... (@ 召唤猫猫)'
+                  whisperMode
+                    ? '悄悄话...'
+                    : hasActiveInvocation
+                      ? '继续输入，消息会排队...'
+                      : '描述你想研究的主题或@助手协助工作...'
                 }
-                className={`block h-[100px] w-full resize-none rounded-xl border p-3 pr-24 text-sm focus:outline-none focus:ring-2 placeholder:text-gray-400 ${
+                className={`chat-input-textarea relative z-20 block h-[114px] w-full resize-none overflow-y-auto rounded-2xl border bg-transparent p-3 text-[16px] leading-6 text-[#191919] caret-[#191919] focus:outline-none focus:ring-2 placeholder:text-gray-400 ${
                   whisperMode
                     ? 'border-amber-300 bg-amber-50/50 focus:ring-amber-400'
                     : 'border-cocreator-light bg-white focus:ring-cocreator-primary'
@@ -707,7 +803,7 @@ export function ChatInput({
               {ghostSuggestion && !pathCompletion.isOpen && (
                 <div
                   data-testid="ghost-suggestion"
-                  className="pointer-events-none absolute inset-0 h-[100px] w-full overflow-hidden whitespace-pre-wrap break-words rounded-xl p-3 pr-12 text-sm"
+                  className="pointer-events-none absolute inset-0 h-[114px] w-full overflow-hidden whitespace-pre-wrap break-words rounded-2xl p-3 pr-12 text-sm"
                   aria-hidden="true"
                 >
                   <span className="invisible">{input}</span>

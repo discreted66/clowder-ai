@@ -1,4 +1,5 @@
 ﻿import { useTheme } from '@/hooks/useTheme';
+import { useCatData } from '@/hooks/useCatData';
 import { HubButton } from './HubButton';
 
 interface ChatContainerHeaderProps {
@@ -6,6 +7,7 @@ interface ChatContainerHeaderProps {
   onToggleSidebar: () => void;
   threadId: string;
   authPendingCount: number;
+  targetCats: string[];
   viewMode: 'single' | 'split';
   onToggleViewMode: () => void;
   onOpenMobileStatus: () => void;
@@ -24,6 +26,7 @@ export function ChatContainerHeader({
   threadId: _threadId,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   authPendingCount: _authPendingCount,
+  targetCats,
   // F099/OQ-4: viewMode toggle hidden - candidate for removal (KD-7)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   viewMode: _viewMode,
@@ -34,10 +37,22 @@ export function ChatContainerHeader({
   defaultCatId: _defaultCatId,
 }: ChatContainerHeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { getCatById } = useCatData();
+  const visibleCats = targetCats.map((id) => ({ id, cat: getCatById(id) })).filter((entry) => !!entry.cat);
 
   return (
     <header className="safe-area-top relative h-0 overflow-visible">
       <div className="absolute right-5 top-2 z-20 flex items-center gap-1">
+        {visibleCats.length > 0 && (
+          <div className="mr-2 hidden items-center gap-2 md:flex">
+            {visibleCats.map(({ id, cat }) => (
+              <div key={id} className="flex items-center gap-2" title={cat!.displayName}>
+                <img src={cat!.avatar} alt={cat!.displayName} className="h-6 w-6 rounded-full" />
+                <span className="text-sm text-[#191919]">{cat!.displayName}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           onClick={onOpenMobileStatus}

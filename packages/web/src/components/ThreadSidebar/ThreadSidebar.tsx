@@ -741,7 +741,6 @@ export function ThreadSidebar({
           <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold text-gray-900 mb-2">确认删除对话</h3>
             <p className="text-sm text-gray-600 mb-1">即将删除「{deleteTarget.title ?? '未命名对话'}」</p>
-            <p className="text-xs text-gray-500 mb-4">对话将移入回收站，30 天后自动清理。你可以随时从回收站恢复。</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}
@@ -753,7 +752,7 @@ export function ThreadSidebar({
                 onClick={handleDeleteConfirm}
                 className="rounded-lg bg-orange-500 px-3 py-1.5 text-sm text-white transition-colors hover:bg-orange-600"
               >
-                移入回收站
+                确定
               </button>
             </div>
           </div>

@@ -914,8 +914,6 @@ export function ChatInput({
         </div>
       )}
 
-      <ImagePreview files={images} onRemove={handleRemoveImage} />
-
       <input
         ref={fileInputRef}
         type="file"
@@ -983,6 +981,7 @@ export function ChatInput({
                   }`}
                 style={!whisperMode ? { borderColor: 'rgba(219,219,219,0.8)' } : undefined}
               >
+                <ImagePreview files={images} onRemove={handleRemoveImage} />
                 <div className="relative overflow-hidden rounded-t-2xl">
                   {selectedMentions.length > 0 && (
                     <div

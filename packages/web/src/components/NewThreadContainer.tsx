@@ -45,6 +45,15 @@ export function NewThreadContainer() {
     }
   }, []);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const menu = (event as CustomEvent<{ menu?: 'skills' }>).detail?.menu;
+      if (menu === 'skills') setSidebarMenu('skills');
+    };
+    window.addEventListener('cat-cafe:open-sidebar-menu', handler);
+    return () => window.removeEventListener('cat-cafe:open-sidebar-menu', handler);
+  }, []);
+
   const handleSidebarResize = useCallback(
     (delta: number) => {
       setSidebarWidth((prev) => Math.min(480, Math.max(180, prev + delta)));

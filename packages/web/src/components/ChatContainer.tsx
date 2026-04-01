@@ -189,6 +189,15 @@ function ThreadModeChatContainer({ threadId }: { threadId: string }) {
     handleSend(pending.content, pending.images, undefined, pending.whisper, pending.deliveryMode);
   }, [consumePendingNewThreadSend, handleSend, threadId]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const menu = (event as CustomEvent<{ menu?: 'skills' }>).detail?.menu;
+      if (menu === 'skills') setSidebarMenu('skills');
+    };
+    window.addEventListener('cat-cafe:open-sidebar-menu', handler);
+    return () => window.removeEventListener('cat-cafe:open-sidebar-menu', handler);
+  }, []);
+
   // F096: Listen for interactive block send events
   useEffect(() => {
     const handler = (e: Event) => {
@@ -477,7 +486,7 @@ function ThreadModeChatContainer({ threadId }: { threadId: string }) {
         </>
       )}
 
-      <div className="flex flex-col min-w-0" style={{ flex: '1 1 0%' }}>
+      <div className="flex min-h-0 flex-col min-w-0" style={{ flex: '1 1 0%' }}>
         {sidebarMenu === 'chat' && (
           <ChatContainerHeader
             sidebarOpen={sidebarOpen}
@@ -495,7 +504,7 @@ function ThreadModeChatContainer({ threadId }: { threadId: string }) {
         {sidebarMenu === 'chat' && intentMode === 'ideate' && <ParallelStatusBar onStop={handleStop} />}
         {sidebarMenu === 'chat' && intentMode === 'execute' && <ThinkingIndicator onCancel={cancelInvocation} />}
 
-        <div className="flex-1 relative overflow-hidden">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           {sidebarMenu !== 'chat' && (
             <div className="ui-shell-surface h-full overflow-hidden px-12 pt-12 pb-5">
               {sidebarMenu === 'models' && <ModelsPanel />}
@@ -508,7 +517,7 @@ function ThreadModeChatContainer({ threadId }: { threadId: string }) {
             <main
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="ui-shell-surface h-full overflow-y-auto p-4"
+              className="ui-shell-surface h-full min-h-0 overflow-y-auto p-4"
               data-chat-container
             >
               {isLoadingHistory && <div className="text-center py-3 text-sm text-gray-400">加载历史消息...</div>}

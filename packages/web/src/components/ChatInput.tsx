@@ -45,6 +45,10 @@ interface ChatInputProps {
 
 const ACCEPTED_TYPES = 'image/png,image/jpeg,image/gif,image/webp';
 const QUICK_ACTIONS = ['文档处理', '视频生成', '深度研究', '幻灯片', '数据分析', '数据可视化', '金融服务'] as const;
+const SKILL_OPTIONS = ['文档处理', '视频生成', '深度研究', '幻灯片', '数据分析', '数据可视化', '金融服务'] as const;
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const TEXTAREA_MIN_HEIGHT = 114;
+const TEXTAREA_MAX_HEIGHT = 280;
 
 export function ChatInput({
   threadId,
@@ -57,6 +61,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const { cats } = useCatData();
   const catOptions = useMemo(() => buildCatOptions(cats), [cats]);
+  const replaceThreadTargetCats = useChatStore((s) => s.replaceThreadTargetCats);
   const whisperOptions = useMemo(() => buildWhisperOptions(cats), [cats]);
 
   // F122B AC-B10: track which cats are actively executing (for whisper disable)
@@ -78,10 +83,14 @@ export function ChatInput({
   const [input, setInput] = useState(() => (threadId ? (threadDrafts.get(threadId) ?? '') : ''));
   const [showMentions, setShowMentions] = useState(false);
   const [showGameMenu, setShowGameMenu] = useState(false);
+  const [showSkillMenu, setShowSkillMenu] = useState(false);
   const [gameStep, setGameStep] = useState<'list' | 'modes'>('list');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [mentionStart, setMentionStart] = useState(-1);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [skillFilter, setSkillFilter] = useState('');
+  const [selectedMentions, setSelectedMentions] = useState<CatOption[]>([]);
+  const [mentionIndentPx, setMentionIndentPx] = useState(0);
   const [images, setImages] = useState<File[]>([]);
   const [isPreparingImages, setIsPreparingImages] = useState(false);
   const [whisperMode, setWhisperMode] = useState(false);
@@ -92,8 +101,10 @@ export function ChatInput({
   const [showHistorySearch, setShowHistorySearch] = useState(false);
   const [lobbyMode, setLobbyMode] = useState<'player' | 'god-view' | 'detective' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionPrefixRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const gameBtnRef = useRef<HTMLButtonElement>(null);
+  const skillBtnRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageLifecycleStatus = deriveImageLifecycleStatus(isPreparingImages, uploadStatus);
   const sendTemporarilyDisabled = isImageLifecycleBlockingSend(imageLifecycleStatus);
@@ -124,6 +135,21 @@ export function ChatInput({
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
+  const syncMentionPrefixTransform = useCallback((taOverride?: HTMLTextAreaElement | null) => {
+    const prefixEl = mentionPrefixRef.current;
+    const ta = taOverride ?? textareaRef.current;
+    if (!prefixEl) return;
+    if (!ta || selectedMentions.length === 0) {
+      prefixEl.style.transform = 'translate(0px, 0px)';
+      return;
+    }
+    const canScrollY = ta.scrollHeight > ta.clientHeight + 1;
+    const canScrollX = ta.scrollWidth > ta.clientWidth + 1;
+    const x = canScrollX ? -ta.scrollLeft : 0;
+    const y = canScrollY ? -ta.scrollTop : 0;
+    prefixEl.style.transform = `translate(${x}px, ${y}px)`;
+  }, [selectedMentions.length]);
+
   const filteredCatOptions = useMemo(() => {
     if (!mentionFilter) return catOptions;
     const lower = mentionFilter.toLowerCase();
@@ -135,9 +161,42 @@ export function ChatInput({
     );
   }, [catOptions, mentionFilter]);
 
-  const activeMenu = showMentions ? 'mention' : showGameMenu ? 'game' : null;
+  const filteredSkillOptions = useMemo(() => {
+    const lower = skillFilter.trim().toLowerCase();
+    if (!lower) return SKILL_OPTIONS;
+    return SKILL_OPTIONS.filter((name) => name.toLowerCase().includes(lower));
+  }, [skillFilter]);
+
+  useLayoutEffect(() => {
+    if (selectedMentions.length === 0) {
+      setMentionIndentPx(0);
+      return;
+    }
+    const prefixEl = mentionPrefixRef.current;
+    if (!prefixEl) return;
+    // Keep indent stable while typing/deleting: only recompute when mention tokens change.
+    const rafId = window.requestAnimationFrame(() => {
+      const nextIndent = Math.ceil(prefixEl.scrollWidth);
+      setMentionIndentPx((prev) => (prev === nextIndent ? prev : nextIndent));
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [selectedMentions]);
+
+  useLayoutEffect(() => {
+    const prefixEl = mentionPrefixRef.current;
+    const ta = textareaRef.current;
+    if (!prefixEl || !ta || selectedMentions.length === 0) return;
+    syncMentionPrefixTransform(ta);
+  }, [selectedMentions, syncMentionPrefixTransform]);
+
+  const activeMenu = showMentions ? 'mention' : showGameMenu ? 'game' : showSkillMenu ? 'skill' : null;
   const gameMenuItems = gameStep === 'list' ? GAME_LIST : WEREWOLF_MODES;
-  const activeOptions = activeMenu === 'mention' ? filteredCatOptions : (gameMenuItems as unknown as CatOption[]);
+  const activeOptionsCount =
+    activeMenu === 'mention'
+      ? filteredCatOptions.length
+      : activeMenu === 'skill'
+        ? filteredSkillOptions.length
+        : gameMenuItems.length;
 
   const addHistoryEntry = useInputHistoryStore((s) => s.addEntry);
   const findHistoryMatch = useInputHistoryStore((s) => s.findMatch);
@@ -150,22 +209,36 @@ export function ChatInput({
       if (sendTemporarilyDisabled) return;
       if (whisperMode && whisperTargets.size === 0) return;
       const trimmed = input.trim();
-      if (trimmed && !disabled) {
-        addHistoryEntry(trimmed);
+      const mentionPrefix = selectedMentions.map((m) => m.insert.trim()).join(' ');
+      const payload = [mentionPrefix, trimmed].filter(Boolean).join(' ').trim();
+      if (payload && !disabled) {
+        addHistoryEntry(payload);
         const whisper =
           whisperMode && whisperTargets.size > 0
             ? { visibility: 'whisper' as const, whisperTo: [...whisperTargets] }
             : undefined;
-        onSend(trimmed, images.length > 0 ? images : undefined, whisper, deliveryMode);
+        onSend(payload, images.length > 0 ? images : undefined, whisper, deliveryMode);
         setInput('');
+        setSelectedMentions([]);
         ghostRef.current = null;
         setGhostSuggestion(null);
         setImages([]);
         setShowMentions(false);
         setShowGameMenu(false);
+        setShowSkillMenu(false);
       }
     },
-    [input, disabled, onSend, images, sendTemporarilyDisabled, whisperMode, whisperTargets, addHistoryEntry],
+    [
+      input,
+      disabled,
+      onSend,
+      images,
+      sendTemporarilyDisabled,
+      whisperMode,
+      whisperTargets,
+      addHistoryEntry,
+      selectedMentions,
+    ],
   );
 
   const handleSend = useCallback(() => doSend(undefined), [doSend]);
@@ -175,6 +248,8 @@ export function ChatInput({
   const closeMenus = useCallback(() => {
     setShowMentions(false);
     setShowGameMenu(false);
+    setShowSkillMenu(false);
+    setSkillFilter('');
   }, []);
 
   const router = useRouter();
@@ -228,14 +303,46 @@ export function ChatInput({
 
   const insertMention = useCallback(
     (option: CatOption) => {
-      const before = input.slice(0, mentionStart);
-      const after = input.slice(textareaRef.current?.selectionStart ?? mentionStart + 1);
-      setInput(before + option.insert + after);
+      setSelectedMentions((prev) => (prev.some((m) => m.id === option.id) ? prev : [...prev, option]));
+      const cursor = textareaRef.current?.selectionStart ?? input.length;
+      const start = mentionStart >= 0 ? mentionStart : cursor;
+      const before = input.slice(0, start);
+      const after = input.slice(cursor);
+      const nextValue =
+        before.endsWith(' ') && after.startsWith(' ')
+          ? `${before}${after.slice(1)}`
+          : `${before}${after}`;
+      setInput(nextValue);
       setShowMentions(false);
       setMentionStart(-1);
+      setMentionFilter('');
       setTimeout(() => textareaRef.current?.focus(), 0);
     },
     [input, mentionStart],
+  );
+
+  const insertSkill = useCallback(
+    (skillName: string) => {
+      const ta = textareaRef.current;
+      const start = ta?.selectionStart ?? input.length;
+      const end = ta?.selectionEnd ?? input.length;
+      const before = input.slice(0, start);
+      const after = input.slice(end);
+      const leftJoiner = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+      const rightJoiner = after.length > 0 && !/^\s/.test(after) ? ' ' : '';
+      const next = `${before}${leftJoiner}${skillName}${rightJoiner}${after}`;
+      setInput(next);
+      setShowSkillMenu(false);
+      setSkillFilter('');
+      setTimeout(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const cursorPos = (before + leftJoiner + skillName).length;
+        el.focus();
+        el.setSelectionRange(cursorPos, cursorPos);
+      }, 0);
+    },
+    [input],
   );
 
   const handleChange = useCallback(
@@ -247,20 +354,42 @@ export function ChatInput({
         setShowGameMenu(true);
         setGameStep('list');
         setShowMentions(false);
+        setShowSkillMenu(false);
         setSelectedIdx(0);
       } else if (trigger?.type === 'mention') {
         setShowMentions(true);
         setShowGameMenu(false);
+        setShowSkillMenu(false);
         setMentionStart(trigger.start);
         setMentionFilter(trigger.filter);
         setSelectedIdx(0);
       } else {
         closeMenus();
         setMentionFilter('');
+        setSkillFilter('');
       }
     },
     [closeMenus],
   );
+
+  useEffect(() => {
+    if (!threadId) return;
+    const typedMentionIds = catOptions
+      .filter((opt) => {
+        const token = opt.insert.trim();
+        if (!token.startsWith('@')) return false;
+        const re = new RegExp(`(^|\\s)${escapeRegExp(token)}(?=\\s|$)`, 'i');
+        return re.test(input);
+      })
+      .map((opt) => opt.id);
+    const tokenMentionIds = selectedMentions.map((m) => m.id);
+    replaceThreadTargetCats(threadId, Array.from(new Set([...tokenMentionIds, ...typedMentionIds])));
+  }, [catOptions, input, replaceThreadTargetCats, selectedMentions, threadId]);
+
+  useEffect(() => {
+    const valid = new Set(catOptions.map((opt) => opt.id));
+    setSelectedMentions((prev) => prev.filter((item) => valid.has(item.id)));
+  }, [catOptions]);
 
   const handleHistorySelect = useCallback(
     (text: string) => {
@@ -283,27 +412,39 @@ export function ChatInput({
       e.preventDefault();
       closeMenus();
       setMentionFilter('');
+      setSkillFilter('');
       setShowHistorySearch(true);
       return;
     }
 
+    if (e.key === 'Backspace') {
+      const ta = textareaRef.current;
+      const atStart = !!ta && ta.selectionStart === 0 && ta.selectionEnd === 0;
+      if (atStart && input.length === 0 && selectedMentions.length > 0) {
+        e.preventDefault();
+        setSelectedMentions((prev) => prev.slice(0, -1));
+        return;
+      }
+    }
+
     if (activeMenu) {
-      if (activeOptions.length === 0) {
+      if (activeOptionsCount === 0) {
         if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab' || e.key === 'Escape') {
           e.preventDefault();
         }
         closeMenus();
         setMentionFilter('');
+        setSkillFilter('');
         return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIdx((i) => (i + 1) % activeOptions.length);
+        setSelectedIdx((i) => (i + 1) % activeOptionsCount);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIdx((i) => (i - 1 + activeOptions.length) % activeOptions.length);
+        setSelectedIdx((i) => (i - 1 + activeOptionsCount) % activeOptionsCount);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
@@ -315,6 +456,13 @@ export function ChatInput({
             return;
           }
           insertMention(opt);
+        } else if (activeMenu === 'skill') {
+          const skill = filteredSkillOptions[selectedIdx];
+          if (!skill) {
+            closeMenus();
+            return;
+          }
+          insertSkill(skill);
         } else if (gameStep === 'list') {
           // Layer 1: drill into mode selection
           setGameStep('modes');
@@ -440,6 +588,27 @@ export function ChatInput({
     [images],
   );
 
+  const handleTextareaScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
+    syncMentionPrefixTransform(e.currentTarget);
+  }, [syncMentionPrefixTransform]);
+
+  const resizeTextarea = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    const contentHeight = ta.scrollHeight;
+    const nextHeight = Math.max(TEXTAREA_MIN_HEIGHT, Math.min(contentHeight, TEXTAREA_MAX_HEIGHT));
+    const nextOverflowY = contentHeight > TEXTAREA_MAX_HEIGHT ? 'auto' : 'hidden';
+    const nextHeightCss = `${nextHeight}px`;
+    if (ta.style.height !== nextHeightCss) ta.style.height = nextHeightCss;
+    if (ta.style.overflowY !== nextOverflowY) ta.style.overflowY = nextOverflowY;
+    syncMentionPrefixTransform(ta);
+  }, [syncMentionPrefixTransform]);
+
+  useLayoutEffect(() => {
+    resizeTextarea();
+  }, [input, mentionIndentPx, selectedMentions, resizeTextarea]);
+
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
@@ -461,6 +630,11 @@ export function ChatInput({
     setSelectedIdx((i) => Math.min(i, Math.max(0, filteredCatOptions.length - 1)));
   }, [filteredCatOptions, showMentions]);
 
+  useEffect(() => {
+    if (!showSkillMenu) return;
+    setSelectedIdx((i) => Math.min(i, Math.max(0, filteredSkillOptions.length - 1)));
+  }, [filteredSkillOptions, showSkillMenu]);
+
   // Reconcile whisperTargets: remove invalid ids + remove newly-active cats (B10)
   useEffect(() => {
     if (!whisperMode) return;
@@ -473,9 +647,17 @@ export function ChatInput({
 
   const handleGameClick = useCallback(() => {
     setShowMentions(false);
+    setShowSkillMenu(false);
     setMentionStart(-1);
     setShowGameMenu((prev) => !prev);
     setGameStep('list');
+    setSelectedIdx(0);
+  }, []);
+
+  const handleSkillClick = useCallback(() => {
+    setShowMentions(false);
+    setShowGameMenu(false);
+    setShowSkillMenu((prev) => !prev);
     setSelectedIdx(0);
   }, []);
 
@@ -506,13 +688,6 @@ export function ChatInput({
     setGhostSuggestion(match);
   }, [input, findHistoryMatch]);
 
-  // Fixed footer input box size by design.
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = '100px';
-  }, [input]);
-
   useEffect(() => {
     if (!activeMenu) return;
     const handler = (e: MouseEvent) => {
@@ -521,7 +696,12 @@ export function ChatInput({
       // detaching the original target (e.g. layer 1 unmounts when drilling
       // into layer 2). A detached target is not a genuine outside click.
       if (!target.isConnected) return;
-      if (menuRef.current && !menuRef.current.contains(target) && !gameBtnRef.current?.contains(target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        !gameBtnRef.current?.contains(target) &&
+        !skillBtnRef.current?.contains(target)
+      ) {
         closeMenus();
       }
     };
@@ -556,6 +736,11 @@ export function ChatInput({
       <ChatInputMenus
         catOptions={filteredCatOptions}
         showMentions={showMentions}
+        mentionFilter={mentionFilter}
+        onMentionFilterChange={(value) => {
+          setMentionFilter(value);
+          setSelectedIdx(0);
+        }}
         showGameMenu={showGameMenu}
         gameStep={gameStep}
         onGameStepChange={setGameStep}
@@ -684,54 +869,154 @@ export function ChatInput({
               ))}
             </div>
 
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                placeholder="描述你想研究的主题或@助手协助工作"
-                className={`block h-[100px] w-full resize-none rounded-2xl border p-3 pr-24 text-sm focus:outline-none focus:ring-2 placeholder:text-gray-400 ${
-                  whisperMode
-                    ? 'border-amber-300 bg-amber-50/50 focus:ring-amber-400'
-                    : 'border-cocreator-light bg-white focus:ring-cocreator-primary'
-                }`}
-                style={{ borderColor: 'rgba(219,219,219,0.8)' }}
-                rows={1}
-                disabled={disabled}
-              >
-              </textarea>
-              {ghostSuggestion && !pathCompletion.isOpen && (
-                <div
-                  data-testid="ghost-suggestion"
-                  className="pointer-events-none absolute inset-0 h-[100px] w-full overflow-hidden whitespace-pre-wrap break-words rounded-xl p-3 pr-12 text-sm"
-                  aria-hidden="true"
-                >
-                  <span className="invisible">{input}</span>
-                  <span className="text-gray-400">{ghostSuggestion.slice(input.length)}</span>
-                </div>
-              )}
-              <div className="absolute bottom-2 right-2 hidden items-center gap-2 md:flex">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={disabled || sendTemporarilyDisabled || images.length >= 5}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white hover:text-cocreator-primary disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label="Attach images"
-                >
-                  <AttachIcon className="h-5 w-5" />
-                </button>
-                <ChatInputActionButton
-                  onTranscript={handleTranscript}
-                  onSend={handleSend}
-                  onStop={onStop}
-                  onQueueSend={handleQueueSend}
-                  onForceSend={handleForceSend}
+            <div
+              className={`relative overflow-hidden rounded-2xl border bg-white focus-within:ring-2 ${
+                whisperMode
+                  ? 'border-amber-300 bg-amber-50/50 focus-within:ring-amber-400'
+                  : 'border-cocreator-light focus-within:ring-cocreator-primary'
+              }`}
+              style={!whisperMode ? { borderColor: 'rgba(219,219,219,0.8)' } : undefined}
+            >
+              <div className="relative">
+                {selectedMentions.length > 0 && (
+                  <div
+                    ref={mentionPrefixRef}
+                    className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-2 overflow-hidden whitespace-nowrap"
+                  >
+                    {selectedMentions.map((mention) => (
+                      <span key={mention.id} className="shrink-0 text-[16px] leading-5 text-[rgba(20,118,255,1)]">
+                        {mention.label.startsWith('@') ? mention.label : `@${mention.label}`}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={handleChange}
+                  onInput={resizeTextarea}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  onScroll={handleTextareaScroll}
+                  placeholder={hasActiveInvocation ? '继续输入，消息进入排队中' : '描述你想研究的主题或@助手协助工作'}
+                  className="block min-h-[114px] w-full resize-none bg-transparent p-3 text-sm placeholder:text-gray-400 focus:outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+                  style={{
+                    textIndent: selectedMentions.length > 0 ? `calc(${mentionIndentPx}px + 2ch)` : undefined,
+                  }}
+                  rows={1}
                   disabled={disabled}
-                  sendDisabled={sendTemporarilyDisabled}
-                  hasActiveInvocation={hasActiveInvocation}
-                  hasText={!!input.trim()}
-                />
+                >
+                </textarea>
+                {ghostSuggestion && !pathCompletion.isOpen && (
+                  <div
+                    data-testid="ghost-suggestion"
+                    className="pointer-events-none absolute inset-0 w-full overflow-hidden whitespace-pre-wrap break-words rounded-xl p-3 text-sm"
+                    aria-hidden="true"
+                  >
+                    <span className="invisible">{input}</span>
+                    <span className="text-gray-400">{ghostSuggestion.slice(input.length)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="relative">
+                    <button
+                      ref={skillBtnRef}
+                      type="button"
+                      onClick={handleSkillClick}
+                      className="inline-flex items-center gap-2 rounded-full border border-[rgba(219,219,219,0.8)] px-3 py-[5px] text-xs text-[#191919] transition-colors hover:bg-gray-50"
+                    >
+                      <img src="/icons/menu/skills.svg" alt="" aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      技能
+                    </button>
+                    {showSkillMenu && (
+                      <div
+                        ref={menuRef}
+                        className="absolute bottom-full left-0 mb-2 z-20 flex w-[200px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg"
+                      >
+                        <div className="px-1 pt-0 pb-2">
+                          <div className="relative">
+                            <svg
+                              className="pointer-events-none absolute left-0 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <circle cx="11" cy="11" r="7" />
+                              <path d="M20 20l-3.5-3.5" />
+                            </svg>
+                            <input
+                              value={skillFilter}
+                              onChange={(e) => {
+                                setSkillFilter(e.target.value);
+                                setSelectedIdx(0);
+                              }}
+                              placeholder="请输入关键字搜索"
+                              className="w-full border-0 border-b border-gray-300 bg-transparent py-1 pl-6 pr-0 text-sm text-[#191919] outline-none focus:border-[#191919]"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-[220px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
+                          {filteredSkillOptions.map((skill, i) => (
+                            <button
+                              key={skill}
+                              type="button"
+                              className={`flex h-[34px] w-full items-center rounded-[6px] p-2 text-left text-[12px] font-normal text-[#191919] transition-colors ${
+                                i === selectedIdx ? 'bg-[rgba(240,247,255,1)]' : 'hover:bg-[rgba(240,247,255,0.1)]'
+                              }`}
+                              onMouseEnter={() => setSelectedIdx(i)}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                insertSkill(skill);
+                              }}
+                            >
+                              {skill}
+                            </button>
+                          ))}
+                          {filteredSkillOptions.length === 0 && (
+                            <div className="px-2 py-2 text-xs text-gray-400">无匹配技能</div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 h-[34px] rounded-[6px] border border-[rgba(219,219,219,0.8)] text-[12px] text-[#191919] transition-colors hover:bg-gray-50"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            closeMenus();
+                            window.dispatchEvent(
+                              new CustomEvent('cat-cafe:open-sidebar-menu', { detail: { menu: 'skills' } }),
+                            );
+                          }}
+                        >
+                          管理技能
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={disabled || sendTemporarilyDisabled || images.length >= 5}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white hover:text-cocreator-primary disabled:cursor-not-allowed disabled:opacity-30"
+                      aria-label="Attach images"
+                    >
+                      <AttachIcon className="h-5 w-5" />
+                    </button>
+                    <ChatInputActionButton
+                      onTranscript={handleTranscript}
+                      onSend={handleSend}
+                      onStop={onStop}
+                      onQueueSend={handleQueueSend}
+                      onForceSend={handleForceSend}
+                      disabled={disabled}
+                      sendDisabled={sendTemporarilyDisabled}
+                      hasActiveInvocation={hasActiveInvocation}
+                      hasText={!!input.trim()}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

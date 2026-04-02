@@ -131,6 +131,8 @@ private/
 # Playwright MCP cache
 .playwright-mcp/
 
+.pnpm-store/
+
 # SQLite runtime databases (Hindsight evidence store)
 evidence.sqlite
 evidence.sqlite-shm

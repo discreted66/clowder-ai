@@ -42,9 +42,9 @@ export function ImagePreview({ files, onRemove }: ImagePreviewProps) {
 
   return (
     <>
-      <div className="flex gap-2 border-b pt-3 border-gray-200 overflow-visible pb-2 mb-2 mx-4 w-auto">
+      <div className="flex gap-2 border-b pt-3 border-gray-100 overflow-visible pb-2 mb-2 mx-4 w-auto">
         {files.map((file, i) => (
-          <div key={`${file.name}-${i}`} className="relative inline-flex gap-[10px] py-2 flex-shrink-0 group border border-gray-200 rounded-lg px-2" title={file.name}>
+          <div key={`${file.name}-${i}`} className="relative inline-flex gap-[10px] py-2 flex-shrink-0 group border border-gray-200 rounded-lg px-2  hover:shadow-md transition-shadow" title={file.name}>
             <img
               src={urls[i]}
               alt={file.name}
@@ -53,7 +53,7 @@ export function ImagePreview({ files, onRemove }: ImagePreviewProps) {
             />
             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setLightboxIdx(i)}>
               <div
-                className="truncate"
+                className="truncate max-w-[120px] text-ellipsis overflow-hidden"
                 style={{ color: '#191919', fontSize: 12, fontWeight: 400, lineHeight: '18px' }}
                 title={file.name}
               >
@@ -61,13 +61,13 @@ export function ImagePreview({ files, onRemove }: ImagePreviewProps) {
               </div>
               <div className="mt-1 text-[12px]" style={{ color: '#808080', fontWeight: 400, lineHeight: '18px' }}>
                 <span>{getFileExt(file.name)}</span>
-                <span className="mx-2">·</span>
+                <span className="mx-2"></span>
                 <span>{formatFileSize(file.size)}</span>
               </div>
             </div>
             <button
               onClick={() => onRemove(i)}
-              className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[rgba(0,0,0,0.3)] pb-1 text-white text-xs flex items-center justify-center z-10"
+              className="hidden group-hover:flex items-center absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[rgba(0,0,0,0.3)] pb-1 text-white text-xs flex items-center justify-center z-10"
               style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.8)' }}
               title={`移除 ${file.name}`}
               aria-label={`Remove ${file.name}`}

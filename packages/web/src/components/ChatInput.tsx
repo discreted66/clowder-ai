@@ -28,6 +28,7 @@ import { ImagePreview } from './ImagePreview';
 import { AttachIcon } from './icons/AttachIcon';
 import { MobileInputToolbar } from './MobileInputToolbar';
 import { PathCompletionMenu } from './PathCompletionMenu';
+import { RichTextarea, type RichTextareaHandle } from './RichTextarea';
 
 /** Module-level draft storage — survives component unmount/remount across thread switches */
 export const threadDrafts = new Map<string, string>();
@@ -179,8 +180,6 @@ export function ChatInput({
   const [skillFilter, setSkillFilter] = useState('');
   const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
   const [skillOptionsLoading, setSkillOptionsLoading] = useState(false);
-  const [selectedMentions, setSelectedMentions] = useState<CatOption[]>([]);
-  const [mentionIndentPx, setMentionIndentPx] = useState(0);
   const [images, setImages] = useState<File[]>([]);
   const [isPreparingImages, setIsPreparingImages] = useState(false);
   const [whisperMode, setWhisperMode] = useState(false);
@@ -191,8 +190,7 @@ export function ChatInput({
   const ghostRef = useRef<string | null>(null);
   const [showHistorySearch, setShowHistorySearch] = useState(false);
   const [lobbyMode, setLobbyMode] = useState<'player' | 'god-view' | 'detective' | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionPrefixRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<RichTextareaHandle>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const gameBtnRef = useRef<HTMLButtonElement>(null);
   const skillBtnRef = useRef<HTMLButtonElement>(null);
@@ -229,20 +227,6 @@ export function ChatInput({
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
-  const syncMentionPrefixTransform = useCallback((taOverride?: HTMLTextAreaElement | null) => {
-    const prefixEl = mentionPrefixRef.current;
-    const ta = taOverride ?? textareaRef.current;
-    if (!prefixEl) return;
-    if (!ta || selectedMentions.length === 0) {
-      prefixEl.style.transform = 'translate(0px, 0px)';
-      return;
-    }
-    const canScrollY = ta.scrollHeight > ta.clientHeight + 1;
-    const canScrollX = ta.scrollWidth > ta.clientWidth + 1;
-    const x = canScrollX ? -ta.scrollLeft : 0;
-    const y = canScrollY ? -ta.scrollTop : 0;
-    prefixEl.style.transform = `translate(${x}px, ${y}px)`;
-  }, [selectedMentions.length]);
 
   const filteredCatOptions = useMemo(() => {
     if (!mentionFilter) return catOptions;
@@ -276,28 +260,6 @@ export function ChatInput({
     };
   }, []);
 
-  useLayoutEffect(() => {
-    if (selectedMentions.length === 0) {
-      setMentionIndentPx(0);
-      return;
-    }
-    const prefixEl = mentionPrefixRef.current;
-    if (!prefixEl) return;
-    // Keep indent stable while typing/deleting: only recompute when mention tokens change.
-    const rafId = window.requestAnimationFrame(() => {
-      const nextIndent = Math.ceil(prefixEl.scrollWidth);
-      setMentionIndentPx((prev) => (prev === nextIndent ? prev : nextIndent));
-    });
-    return () => window.cancelAnimationFrame(rafId);
-  }, [selectedMentions]);
-
-  useLayoutEffect(() => {
-    const prefixEl = mentionPrefixRef.current;
-    const ta = textareaRef.current;
-    if (!prefixEl || !ta || selectedMentions.length === 0) return;
-    syncMentionPrefixTransform(ta);
-  }, [selectedMentions, syncMentionPrefixTransform]);
-
   const activeMenu = showMentions ? 'mention' : showGameMenu ? 'game' : showSkillMenu ? 'skill' : null;
   const gameMenuItems = gameStep === 'list' ? GAME_LIST : WEREWOLF_MODES;
   const activeOptionsCount =
@@ -318,8 +280,7 @@ export function ChatInput({
       if (sendTemporarilyDisabled) return;
       if (whisperMode && whisperTargets.size === 0) return;
       const trimmed = input.trim();
-      const mentionPrefix = selectedMentions.map((m) => m.insert.trim()).join(' ');
-      const payload = [mentionPrefix, trimmed].filter(Boolean).join(' ').trim();
+      const payload = trimmed;
       if (payload && !disabled) {
         addHistoryEntry(payload);
         const whisper =
@@ -328,7 +289,6 @@ export function ChatInput({
             : undefined;
         onSend(payload, images.length > 0 ? images : undefined, whisper, deliveryMode);
         setInput('');
-        setSelectedMentions([]);
         ghostRef.current = null;
         setGhostSuggestion(null);
         setImages([]);
@@ -346,7 +306,6 @@ export function ChatInput({
       whisperMode,
       whisperTargets,
       addHistoryEntry,
-      selectedMentions,
     ],
   );
 
@@ -412,20 +371,27 @@ export function ChatInput({
 
   const insertMention = useCallback(
     (option: CatOption) => {
-      setSelectedMentions((prev) => (prev.some((m) => m.id === option.id) ? prev : [...prev, option]));
-      const cursor = textareaRef.current?.selectionStart ?? input.length;
+      const cursor = textareaRef.current?.getSelectionStart() ?? input.length;
       const start = mentionStart >= 0 ? mentionStart : cursor;
       const before = input.slice(0, start);
       const after = input.slice(cursor);
-      const nextValue =
-        before.endsWith(' ') && after.startsWith(' ')
-          ? `${before}${after.slice(1)}`
-          : `${before}${after}`;
+      const displayMention = option.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const mentionText = displayMention.startsWith('@') ? displayMention : `@${displayMention}`;
+      const leftJoiner = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+      const rightJoiner = ' ';
+      const normalizedAfter = after.replace(/^\s+/, '');
+      const nextValue = `${before}${leftJoiner}${mentionText}${rightJoiner}${normalizedAfter}`;
       setInput(nextValue);
       setShowMentions(false);
       setMentionStart(-1);
       setMentionFilter('');
-      setTimeout(() => textareaRef.current?.focus(), 0);
+      setTimeout(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const cursorPos = (before + leftJoiner + mentionText + rightJoiner).length;
+        el.focus();
+        el.setSelectionRange(cursorPos, cursorPos);
+      }, 0);
     },
     [input, mentionStart],
   );
@@ -433,20 +399,21 @@ export function ChatInput({
   const insertSkill = useCallback(
     (skillName: string) => {
       const ta = textareaRef.current;
-      const start = ta?.selectionStart ?? input.length;
-      const end = ta?.selectionEnd ?? input.length;
+      const start = ta?.getSelectionStart() ?? input.length;
+      const end = ta?.getSelectionEnd() ?? input.length;
       const before = input.slice(0, start);
       const after = input.slice(end);
-      const leftJoiner = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
-      const rightJoiner = after.length > 0 && !/^\s/.test(after) ? ' ' : '';
-      const next = `${before}${leftJoiner}${skillName}${rightJoiner}${after}`;
+      const leftJoiner = before.endsWith(' ') ? '' : ' ';
+      const rightJoiner = ' ';
+      const normalizedAfter = after.replace(/^\s+/, '');
+      const next = `${before}${leftJoiner}${skillName}${rightJoiner}${normalizedAfter}`;
       setInput(next);
       setShowSkillMenu(false);
       setSkillFilter('');
       setTimeout(() => {
         const el = textareaRef.current;
         if (!el) return;
-        const cursorPos = (before + leftJoiner + skillName).length;
+        const cursorPos = (before + leftJoiner + skillName + rightJoiner).length;
         el.focus();
         el.setSelectionRange(cursorPos, cursorPos);
       }, 0);
@@ -455,10 +422,9 @@ export function ChatInput({
   );
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const val = e.target.value;
+    (val: string, selectionStart: number, _selectionEnd: number) => {
       setInput(val);
-      const trigger = detectMenuTrigger(val, e.target.selectionStart);
+      const trigger = detectMenuTrigger(val, selectionStart);
       if (trigger?.type === 'game') {
         setShowGameMenu(true);
         setGameStep('list');
@@ -485,20 +451,18 @@ export function ChatInput({
     if (!threadId) return;
     const typedMentionIds = catOptions
       .filter((opt) => {
-        const token = opt.insert.trim();
-        if (!token.startsWith('@')) return false;
-        const re = new RegExp(`(^|\\s)${escapeRegExp(token)}(?=\\s|$)`, 'i');
-        return re.test(input);
+        const routeToken = opt.insert.trim();
+        const displayTokenBase = opt.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        const displayToken = displayTokenBase.startsWith('@') ? displayTokenBase : `@${displayTokenBase}`;
+        const candidates = [routeToken, displayToken].filter((t) => t.startsWith('@'));
+        return candidates.some((token) => {
+          const re = new RegExp(`(^|\\s)${escapeRegExp(token)}(?=\\s|$)`, 'i');
+          return re.test(input);
+        });
       })
       .map((opt) => opt.id);
-    const tokenMentionIds = selectedMentions.map((m) => m.id);
-    replaceThreadTargetCats(threadId, Array.from(new Set([...tokenMentionIds, ...typedMentionIds])));
-  }, [catOptions, input, replaceThreadTargetCats, selectedMentions, threadId]);
-
-  useEffect(() => {
-    const valid = new Set(catOptions.map((opt) => opt.id));
-    setSelectedMentions((prev) => prev.filter((item) => valid.has(item.id)));
-  }, [catOptions]);
+    replaceThreadTargetCats(threadId, typedMentionIds);
+  }, [catOptions, input, replaceThreadTargetCats, threadId]);
 
   const handleHistorySelect = useCallback(
     (text: string) => {
@@ -513,7 +477,7 @@ export function ChatInput({
     [closeMenus],
   );
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing) return;
 
     // F080: Ctrl+R opens history search (clear any active menus first)
@@ -524,16 +488,6 @@ export function ChatInput({
       setSkillFilter('');
       setShowHistorySearch(true);
       return;
-    }
-
-    if (e.key === 'Backspace') {
-      const ta = textareaRef.current;
-      const atStart = !!ta && ta.selectionStart === 0 && ta.selectionEnd === 0;
-      if (atStart && input.length === 0 && selectedMentions.length > 0) {
-        e.preventDefault();
-        setSelectedMentions((prev) => prev.slice(0, -1));
-        return;
-      }
     }
 
     if (activeMenu) {
@@ -626,8 +580,10 @@ export function ChatInput({
     // ArrowRight only accepts when cursor is at end of input (no selection)
     if (e.key === 'Tab' || e.key === 'ArrowRight') {
       const ta = textareaRef.current;
-      const currentVal = ta?.value ?? '';
-      const cursorAtEnd = !ta || (ta.selectionStart === ta.selectionEnd && ta.selectionStart === currentVal.length);
+      const currentVal = input;
+      const selectionStart = ta?.getSelectionStart() ?? currentVal.length;
+      const selectionEnd = ta?.getSelectionEnd() ?? currentVal.length;
+      const cursorAtEnd = selectionStart === selectionEnd && selectionStart === currentVal.length;
       if (e.key === 'ArrowRight' && !cursorAtEnd) {
         // Let ArrowRight move cursor normally when not at end
       } else {
@@ -697,12 +653,10 @@ export function ChatInput({
     [images],
   );
 
-  const handleTextareaScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
-    syncMentionPrefixTransform(e.currentTarget);
-  }, [syncMentionPrefixTransform]);
+  const handleTextareaScroll = useCallback((_e: React.UIEvent<HTMLDivElement>) => {}, []);
 
   const resizeTextarea = useCallback(() => {
-    const ta = textareaRef.current;
+    const ta = textareaRef.current?.getElement();
     if (!ta) return;
     ta.style.height = 'auto';
     const contentHeight = ta.scrollHeight;
@@ -711,12 +665,11 @@ export function ChatInput({
     const nextHeightCss = `${nextHeight}px`;
     if (ta.style.height !== nextHeightCss) ta.style.height = nextHeightCss;
     if (ta.style.overflowY !== nextOverflowY) ta.style.overflowY = nextOverflowY;
-    syncMentionPrefixTransform(ta);
-  }, [syncMentionPrefixTransform]);
+  }, []);
 
   useLayoutEffect(() => {
     resizeTextarea();
-  }, [input, mentionIndentPx, selectedMentions, resizeTextarea]);
+  }, [input, resizeTextarea]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -975,45 +928,28 @@ export function ChatInput({
               </div>
 
               <div
-                className={`relative overflow-visible rounded-2xl border bg-white focus-within:ring-2 ${whisperMode
-                    ? 'border-amber-300 bg-amber-50/50 focus-within:ring-amber-400'
-                    : 'border-cocreator-light focus-within:ring-cocreator-primary'
-                  }`}
-                style={!whisperMode ? { borderColor: 'rgba(219,219,219,0.8)' } : undefined}
+                className={`relative overflow-visible rounded-2xl border bg-white transition-colors ${
+                  whisperMode
+                    ? 'border-amber-300 bg-amber-50/50 focus-within:border-amber-400'
+                    : 'border-[rgba(219,219,219,0.8)] focus-within:border-[rgba(180,180,180,1)]'
+                }`}
               >
                 <ImagePreview files={images} onRemove={handleRemoveImage} />
                 <div className="relative overflow-hidden rounded-t-2xl">
-                  {selectedMentions.length > 0 && (
-                    <div
-                      ref={mentionPrefixRef}
-                      className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-2 overflow-hidden whitespace-nowrap"
-                    >
-                      {selectedMentions.map((mention) => (
-                        <span key={mention.id} className="shrink-0 text-[16px] leading-5 text-[rgba(20,118,255,1)]">
-                          {mention.label.startsWith('@') ? mention.label : `@${mention.label}`}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <textarea
+                  <RichTextarea
                     ref={textareaRef}
                     value={input}
-                    onChange={handleChange}
+                    onValueChange={handleChange}
                     onInput={resizeTextarea}
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     onScroll={handleTextareaScroll}
                     placeholder={hasActiveInvocation ? '继续输入，消息进入排队中' : '描述你想研究的主题或@助手协助工作'}
-                    className="block min-h-[90px] w-full resize-none bg-transparent p-3 text-sm placeholder:text-gray-400 focus:outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
-                    style={{
-                      textIndent: selectedMentions.length > 0 ? `calc(${mentionIndentPx}px + 1ch)` : undefined,
-                    }}
-                    rows={1}
+                    className="block min-h-[90px] w-full bg-transparent p-3 whitespace-pre-wrap break-words text-[16px] placeholder:text-gray-400 focus:outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
                     disabled={disabled}
-                    autoComplete='off'
-                  >
-                  </textarea>
-                  {ghostSuggestion && !pathCompletion.isOpen && (
+                    skillOptions={skillOptions}
+                  />
+                  {ghostSuggestion && !pathCompletion.isOpen && !showMentions && !/(^|\s)@/.test(input) && (
                     <div
                       data-testid="ghost-suggestion"
                       className="pointer-events-none absolute inset-0 w-full overflow-hidden whitespace-pre-wrap break-words rounded-xl p-3 text-sm"
@@ -1024,7 +960,7 @@ export function ChatInput({
                     </div>
                   )}
                 </div>
-                <div className="px-3 py-2">
+                <div className="px-[10px] py-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="relative">
                       <button
@@ -1113,10 +1049,10 @@ export function ChatInput({
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       <div
                         data-testid="folder-select-trigger"
-                        className="relative"
+                        className="relative flex items-center mr-2"
                         onMouseOver={() => shouldShowFolderTooltip && setIsFolderTooltipVisible(true)}
                         onMouseOut={() => setIsFolderTooltipVisible(false)}
                       >

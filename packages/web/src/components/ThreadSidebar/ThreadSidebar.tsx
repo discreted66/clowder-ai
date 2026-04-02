@@ -560,7 +560,7 @@ export function ThreadSidebar({
           </div>
         )}
 
-        <div className="px-4 pt-2 pb-1">
+        <div className="relative px-4 pt-2 pb-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">会话消息</span>
             <div className="flex items-center gap-1">
@@ -612,7 +612,7 @@ export function ThreadSidebar({
           )}
 
           {showFilter && (
-            <div className="mt-3 rounded-[6px] bg-white p-4 shadow-[0_2px_12px_0_rgba(0,0,0,0.16)]">
+            <div className="absolute right-4 top-[44px] z-40 w-[200px] rounded-[6px] bg-white p-4 shadow-[0_2px_12px_0_rgba(0,0,0,0.16)]">
               <div className="text-[12px] font-[400] leading-[18px] text-[#808080]">会话时间</div>
               <div className="mt-3 flex flex-col">
                 {[

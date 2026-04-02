@@ -106,7 +106,7 @@ export function ChatInputActionButton({
   const showIdleMic = !hideIdleMic && voice.state === 'idle';
 
   return (
-    <div className="relative flex shrink-0 items-center justify-end">
+    <div className="relative flex shrink-0 items-center justify-end ml-2">
       {/* Voice recording status */}
       {voice.state === 'recording' && (
         <div className="absolute top-0 right-4 -mt-6 flex items-center gap-2">

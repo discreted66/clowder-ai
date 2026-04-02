@@ -218,15 +218,15 @@ export function ThreadItem({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="ui-thread-title block min-w-0 flex-1 truncate">{displayTitle}</span>
+            {sourceLabel && (
+              <span className="shrink-0 rounded-full bg-[rgba(20,118,255,0.1)] px-2 py-[1px] text-[10px] leading-4 text-[rgba(20,118,255,1)]">
+                {sourceLabel}
+              </span>
+            )}
           </div>
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="block min-w-0 flex-1 truncate text-[12px] text-[var(--text-muted)]">{description}</span>
             <div className="flex shrink-0 items-center gap-1.5">
-              {sourceLabel && (
-                <span className="rounded-full bg-[rgba(20,118,255,0.1)] px-2 py-[1px] text-[10px] leading-4 text-[rgba(20,118,255,1)]">
-                  {sourceLabel}
-                </span>
-              )}
               <span className="ui-thread-meta shrink-0">{formatRelativeTime(lastActiveAt, true)}</span>
             </div>
           </div>

@@ -11,6 +11,7 @@ import { useChatStore } from '@/stores/chatStore';
 import { useInputHistoryStore } from '@/stores/inputHistoryStore';
 import { apiFetch } from '@/utils/api-client';
 import { compressImage } from '@/utils/compressImage';
+import { fetchSkillOptionsWithCache, seedSkillOptionsCache, type SkillOption } from '@/utils/skill-options-cache';
 import { ChatInputActionButton } from './ChatInputActionButton';
 import { ChatInputMenus } from './ChatInputMenus';
 import {
@@ -65,24 +66,6 @@ const QUICK_ACTIONS = ['文档处理', '视频生成', '深度研究', '幻灯�
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const TEXTAREA_MIN_HEIGHT = 70;
 const TEXTAREA_MAX_HEIGHT = 253;
-const SKILL_CACHE_TTL_MS = 5 * 60 * 1000;
-let cachedSkillOptions: SkillOption[] | null = null;
-let cachedSkillOptionsAt = 0;
-let skillOptionsInFlight: Promise<SkillOption[]> | null = null;
-
-interface CapabilitySkillItem {
-  id: string;
-  type: 'mcp' | 'skill' | 'limb';
-}
-
-interface CapabilitiesResponseLite {
-  items: CapabilitySkillItem[];
-}
-
-interface SkillOption {
-  name: string;
-  iconUrl?: string | null;
-}
 
 function normalizeMentionsForSend(input: string, catOptions: CatOption[]): string {
   let output = input;
@@ -117,36 +100,6 @@ function SkillOptionIcon({ name, iconUrl }: { name: string; iconUrl?: string | n
       {getSkillInitial(name)}
     </span>
   );
-}
-
-async function fetchSkillOptionsWithCache(): Promise<SkillOption[]> {
-  const now = Date.now();
-  if (cachedSkillOptions && now - cachedSkillOptionsAt < SKILL_CACHE_TTL_MS) return cachedSkillOptions;
-  if (skillOptionsInFlight) return skillOptionsInFlight;
-
-  skillOptionsInFlight = (async () => {
-    try {
-      const res = await apiFetch('/api/capabilities?probe=true');
-      if (!res.ok) return [];
-      const data = (await res.json()) as CapabilitiesResponseLite;
-      const names = Array.from(
-        new Set(
-          (data.items ?? [])
-            .filter((item) => item.type === 'skill' && typeof item.id === 'string' && item.id.trim().length > 0)
-            .map((item) => item.id.trim()),
-        ),
-      );
-      cachedSkillOptions = names.map((name) => ({ name }));
-      cachedSkillOptionsAt = Date.now();
-      return cachedSkillOptions;
-    } catch {
-      return [];
-    } finally {
-      skillOptionsInFlight = null;
-    }
-  })();
-
-  return skillOptionsInFlight;
 }
 
 export function ChatInput({
@@ -265,7 +218,10 @@ export function ChatInput({
     setSkillOptionsLoading(true);
     fetchSkillOptionsWithCache()
       .then((options) => {
-        if (!cancelled) setSkillOptions(options);
+        if (cancelled) return;
+        setSkillOptions(options);
+        // Keep shared cache warm so message renderer can reuse immediately.
+        seedSkillOptionsCache(options);
       })
       .finally(() => {
         if (!cancelled) setSkillOptionsLoading(false);

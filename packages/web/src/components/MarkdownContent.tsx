@@ -6,21 +6,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { getMentionColor, getMentionLabel, getMentionRe, getMentionToCat } from '@/lib/mention-highlight';
 import { useChatStore } from '@/stores/chatStore';
-import { apiFetch } from '@/utils/api-client';
-
-const SKILL_CACHE_TTL_MS = 5 * 60 * 1000;
-let cachedSkillNames: string[] | null = null;
-let cachedSkillNamesAt = 0;
-let skillNamesInFlight: Promise<string[]> | null = null;
-
-interface CapabilitySkillItem {
-  id: string;
-  type: 'mcp' | 'skill' | 'limb';
-}
-
-interface CapabilitiesResponseLite {
-  items?: CapabilitySkillItem[];
-}
+import { fetchSkillOptionsWithCache, getCachedSkillOptions } from '@/utils/skill-options-cache';
 
 function renderSkillToken(skillName: string, key: string): ReactNode {
   return (
@@ -344,46 +330,15 @@ export function resolveRelativePath(base: string, relative: string): string {
 }
 
 export function MarkdownContent({ content, className, disableCommandPrefix, basePath }: Props) {
-  const [skillNames, setSkillNames] = useState<string[]>(cachedSkillNames ?? []);
+  const [skillNames, setSkillNames] = useState<string[]>(() =>
+    (getCachedSkillOptions() ?? []).map((item) => item.name),
+  );
 
   useEffect(() => {
     let active = true;
-    const now = Date.now();
-
-    if (cachedSkillNames && now - cachedSkillNamesAt < SKILL_CACHE_TTL_MS) {
-      setSkillNames(cachedSkillNames);
-      return () => {
-        active = false;
-      };
-    }
-
-    if (!skillNamesInFlight) {
-      skillNamesInFlight = (async () => {
-        try {
-          const res = await apiFetch('/api/capabilities?probe=true');
-          if (!res.ok) return [];
-          const data = (await res.json()) as CapabilitiesResponseLite;
-          const names = Array.from(
-            new Set(
-              (data.items ?? [])
-                .filter((item) => item.type === 'skill' && typeof item.id === 'string' && item.id.trim().length > 0)
-                .map((item) => item.id.trim()),
-            ),
-          );
-          cachedSkillNames = names;
-          cachedSkillNamesAt = Date.now();
-          return names;
-        } catch {
-          return [];
-        } finally {
-          skillNamesInFlight = null;
-        }
-      })();
-    }
-
-    void skillNamesInFlight.then((names) => {
+    void fetchSkillOptionsWithCache().then((options) => {
       if (!active) return;
-      setSkillNames(names);
+      setSkillNames(options.map((item) => item.name));
     });
 
     return () => {

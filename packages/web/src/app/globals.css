@@ -508,6 +508,7 @@ select:-webkit-autofill:focus {
     border: var(--border-width-default) solid var(--border-default);
     background: var(--surface-panel);
     color: var(--text-primary);
+    border-radius: 8px;
   }
 
   .ui-menu-item-inactive {
@@ -517,6 +518,7 @@ select:-webkit-autofill:focus {
   .ui-menu-item-inactive:hover {
     background: color-mix(in srgb, var(--surface-panel) 72%, transparent);
     color: var(--text-primary);
+    border-radius: 8px;
   }
 
   .ui-thread-item {

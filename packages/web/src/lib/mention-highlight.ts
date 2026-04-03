@@ -11,18 +11,41 @@ import type { CatData } from '@/hooks/useCatData';
 
 // ── Internal builders ───────────────────────────────────
 
-function buildMentionToCat(cats: Array<{ id: string; mentionPatterns: string[] }>): Record<string, string> {
-  return Object.fromEntries(
-    cats.flatMap((cat) => cat.mentionPatterns.map((p) => [p.replace(/^@/, '').toLowerCase(), cat.id])),
-  );
+function buildMentionToCat(cats: Array<{ id: string; displayName: string; mentionPatterns: string[] }>): Record<string, string> {
+  const pairs: Array<[string, string]> = [];
+  for (const cat of cats) {
+    const aliases = new Set<string>();
+    aliases.add(cat.id.trim().toLowerCase());
+    aliases.add(cat.displayName.replace(/^@/, '').trim().toLowerCase());
+    for (const pattern of cat.mentionPatterns) {
+      aliases.add(pattern.replace(/^@/, '').trim().toLowerCase());
+    }
+    for (const alias of aliases) {
+      if (!alias) continue;
+      pairs.push([alias, cat.id]);
+    }
+  }
+  return Object.fromEntries(pairs);
 }
 
 function buildMentionLabel(
-  cats: Array<{ mentionPatterns: string[]; displayName: string }>,
+  cats: Array<{ id: string; mentionPatterns: string[]; displayName: string }>,
 ): Record<string, string> {
-  return Object.fromEntries(
-    cats.flatMap((cat) => cat.mentionPatterns.map((p) => [p.replace(/^@/, '').toLowerCase(), `@${cat.displayName}`])),
-  );
+  const pairs: Array<[string, string]> = [];
+  for (const cat of cats) {
+    const label = `@${cat.displayName}`;
+    const aliases = new Set<string>();
+    aliases.add(cat.id.trim().toLowerCase());
+    aliases.add(cat.displayName.replace(/^@/, '').trim().toLowerCase());
+    for (const pattern of cat.mentionPatterns) {
+      aliases.add(pattern.replace(/^@/, '').trim().toLowerCase());
+    }
+    for (const alias of aliases) {
+      if (!alias) continue;
+      pairs.push([alias, label]);
+    }
+  }
+  return Object.fromEntries(pairs);
 }
 
 function buildMentionRe(toCat: Record<string, string>): RegExp {

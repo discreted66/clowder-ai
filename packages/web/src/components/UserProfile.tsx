@@ -160,12 +160,12 @@ export function UserProfile({ className }: UserProfileProps) {
         className="group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-gray-50"
         data-testid="user-profile-toggle"
       >
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-cocreator-primary">
-          <span className="text-sm font-bold text-white">{avatarLetter}</span>
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F2F2]">
+          <span className="text-sm font-bold text-[#191919]">{avatarLetter}</span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-gray-900" title={userName}>
+          <div className="truncate text-[16px] font-medium text-gray-900" title={userName}>
             {userName}
           </div>
         </div>
@@ -186,17 +186,16 @@ export function UserProfile({ className }: UserProfileProps) {
           className="absolute bottom-full left-3 right-3 z-50 mb-2 rounded-3xl border border-gray-200 bg-white shadow-lg"
           data-testid="user-profile-panel"
         >
-          <div className="p-5" data-testid="user-profile-panel-scroll" ref={panelScrollRef}>
+          <div className="p-4" data-testid="user-profile-panel-scroll" ref={panelScrollRef}>
             <div className="mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cocreator-primary">
-                  <span className="text-base font-bold text-white">{avatarLetter}</span>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F2F2F2]">
+                  <span className="text-base font-bold text-[#191919]">{avatarLetter}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold text-gray-900" title={userName}>
+                  <div className="truncate text-base font-normal text-gray-900" title={userName}>
                     {userName}
                   </div>
-                  <div className="text-xs text-gray-500">已登录</div>
                 </div>
               </div>
             </div>
@@ -205,7 +204,7 @@ export function UserProfile({ className }: UserProfileProps) {
 
             <div className="space-y-3" data-testid="user-profile-content-actions">
               <button
-                className="hidden flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                className="hidden flex w-full items-center gap-2 rounded-md px-3 py-2 text-[16px] font-normal leading-[20px] text-gray-700 transition-colors hover:bg-gray-50"
                 onClick={handleOpenVersionUpdate}
               >
                 <img src="/icons/userprofile/version.svg" alt="" aria-hidden="true" className="h-5 w-5 shrink-0" />
@@ -214,7 +213,7 @@ export function UserProfile({ className }: UserProfileProps) {
 
               <div className="relative" data-testid="user-profile-theme-anchor" ref={themeAnchorRef}>
                 <button
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-[16px] font-normal leading-[20px] text-gray-700 transition-colors hover:bg-gray-50"
                   onClick={handleToggleThemePanel}
                   data-testid="user-profile-theme-trigger"
                 >
@@ -223,7 +222,7 @@ export function UserProfile({ className }: UserProfileProps) {
                 </button>
               </div>
 
-              <button className="hidden flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50">
+              <button className="hidden flex w-full items-center gap-2 rounded-md px-3 py-2 text-[16px] font-normal leading-[20px] text-gray-700 transition-colors hover:bg-gray-50">
                 <img src="/icons/userprofile/help.svg" alt="" aria-hidden="true" className="h-5 w-5 shrink-0" />
                 帮助
               </button>

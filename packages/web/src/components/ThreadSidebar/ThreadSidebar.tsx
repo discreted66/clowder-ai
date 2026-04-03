@@ -479,7 +479,7 @@ export function ThreadSidebar({
     currentThreadId,
   });
   const isChatMenu = !activeMenu && currentThreadId === 'default';
-  const menuItemBase = 'ui-menu-item flex w-full items-center gap-1.5 px-2.5 transition-colors';
+  const menuItemBase = 'ui-menu-item flex h-[38px] w-full items-center gap-2 px-2.5 transition-colors';
   const menuItemActive = 'ui-menu-item-active';
   const menuItemInactive = 'ui-menu-item-inactive';
 
@@ -531,7 +531,7 @@ export function ThreadSidebar({
               onClick={handleNewChat}
               className={`${menuItemBase} ${isChatMenu ? menuItemActive : menuItemInactive} text-cafe-black`}
             >
-              <img src="/icons/menu/new-chat.svg" alt="" aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <img src="/icons/menu/new-chat.svg" alt="" aria-hidden="true" className="w-5 h-5 shrink-0" />
               新建会话
             </button>
             <button
@@ -539,7 +539,7 @@ export function ThreadSidebar({
               onClick={() => onMenuClick?.('models')}
               className={`${menuItemBase} ${activeMenu === 'models' ? menuItemActive : menuItemInactive} text-cafe-black`}
             >
-              <img src="/icons/menu/models.svg" alt="" aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <img src="/icons/menu/models.svg" alt="" aria-hidden="true" className="w-5 h-5 shrink-0" />
               模型
             </button>
             <button
@@ -547,7 +547,7 @@ export function ThreadSidebar({
               onClick={() => onMenuClick?.('agents')}
               className={`${menuItemBase} ${activeMenu === 'agents' ? menuItemActive : menuItemInactive} text-cafe-black`}
             >
-              <img src="/icons/menu/agents.svg" alt="" aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <img src="/icons/menu/agents.svg" alt="" aria-hidden="true" className="w-5 h-5 shrink-0" />
               智能体
             </button>
             <button
@@ -555,7 +555,7 @@ export function ThreadSidebar({
               onClick={() => onMenuClick?.('channels')}
               className={`${menuItemBase} ${activeMenu === 'channels' ? menuItemActive : menuItemInactive} text-cafe-black`}
             >
-              <img src="/icons/menu/channels.svg" alt="" aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <img src="/icons/menu/channels.svg" alt="" aria-hidden="true" className="w-5 h-5 shrink-0" />
               渠道
             </button>
             <button
@@ -563,7 +563,7 @@ export function ThreadSidebar({
               onClick={() => onMenuClick?.('skills')}
               className={`${menuItemBase} ${activeMenu === 'skills' ? menuItemActive : menuItemInactive} text-cafe-black`}
             >
-              <img src="/icons/menu/skills.svg" alt="" aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <img src="/icons/menu/skills.svg" alt="" aria-hidden="true" className="w-5 h-5 shrink-0" />
               技能
             </button>
           </div>
@@ -578,29 +578,31 @@ export function ThreadSidebar({
         <div className="relative px-4 pt-2 pb-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">会话消息</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center">
               <button
                 ref={filterToggleRef}
                 type="button"
-                onClick={() => {setShowFilter((prev) => !prev); setIsSearchOpen(false);}}
+                onClick={() => { setShowFilter((prev) => !prev); setIsSearchOpen(false); }}
                 className={`rounded p-1 transition-colors ${showFilter || filterOption !== 'all' ? 'text-[rgba(20,115,255,1)]' : 'text-[var(--text-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--text-accent)]'}`}
                 title="筛选会话"
                 data-testid="thread-filter-toggle"
               >
-                <svg className="h-4 w-4 align-middle" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true">
-                  <path d="M582.4 529.92c0-18.8416 6.4512-37.1712 18.2272-51.9168l182.3744-227.9936a19.2 19.2 0 0 0 4.1984-11.9808V204.8A19.2 19.2 0 0 0 768 185.6H256A19.2 19.2 0 0 0 236.8 204.8v33.28c0 4.3008 1.4848 8.5504 4.1984 11.9296L423.424 478.0032c11.776 14.7456 18.2272 33.0752 18.2272 51.968v257.5872c0 7.2704 4.096 13.9264 10.5984 17.152l130.2016 65.1264V529.92zM256 121.6512h512c45.9264 0 83.2 37.2736 83.2 83.2v33.28c0 18.8416-6.4512 37.1712-18.2272 51.9168l-182.3744 227.9936a19.2 19.2 0 0 0-4.1984 11.9808v350.208a57.6 57.6 0 0 1-83.3536 51.5072l-139.4688-69.7344a83.2 83.2 0 0 1-45.9776-74.3936v-257.5872a19.2 19.2 0 0 0-4.1984-11.9808L190.976 289.9968a83.2 83.2 0 0 1-18.2272-51.968V204.8c0-45.9264 37.2736-83.2 83.2-83.2z" />
+                <svg  className="h-4 w-4 align-middle" viewBox="0 0 16 16" fill="currentColor" >
+                  <path id="_减去顶层" d="M12.308 1.84961L3.68802 1.84961C3.38802 1.84961 3.09802 1.94961 2.86802 2.13961C2.40802 2.60961 2.26802 3.44961 2.68802 3.96961L5.86802 7.85961L5.86802 13.6396C5.86802 13.9196 6.08802 14.1396 6.36802 14.1396L9.72802 14.1396C9.95802 14.0896 10.138 13.8896 10.138 13.6396L10.138 7.85961L13.328 3.96961C13.518 3.73961 13.618 3.44961 13.618 3.14961C13.618 2.42961 13.028 1.84961 12.308 1.84961ZM12.608 3.14961C12.608 2.97961 12.478 2.84961 12.308 2.84961L3.68802 2.84961C3.61802 2.84961 3.54802 2.86961 3.49802 2.91961C3.36802 3.01961 3.34802 3.20961 3.45802 3.33961L6.74802 7.36961C6.81802 7.45961 6.85802 7.56961 6.85802 7.68961L6.85802 13.1496L9.12802 13.1496L9.12802 7.68961C9.12802 7.59961 9.14802 7.51961 9.19802 7.43961L12.548 3.33961C12.588 3.28961 12.608 3.21961 12.608 3.14961Z" fillRule="evenodd"/>
                 </svg>
               </button>
               <button
                 type="button"
-                onClick={() =>{ setIsSearchOpen((prev) => !prev); setShowFilter(false) }}
+                onClick={() => { setIsSearchOpen((prev) => !prev); setShowFilter(false) }}
                 className={`rounded p-1 transition-colors ${isSearchOpen || normalizedQuery.length > 0 ? 'bg-[var(--accent-soft)] text-[var(--text-accent)]' : 'text-[var(--text-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--text-accent)]'}`}
                 title="搜索会话"
                 data-testid="thread-search-toggle"
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M20 20l-3.5-3.5" />
+                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M1.72656 7.17676C1.72656 4.13919 4.189 1.67676 7.22656 1.67676C10.2641 1.67676 12.7266 4.13919 12.7266 7.17676C12.7266 8.50784 12.2537 9.72845 11.4668 10.6798L14.2009 13.3786C14.3974 13.5726 14.3995 13.8892 14.2055 14.0857C14.033 14.2604 13.7637 14.2814 13.568 14.1477L10.7625 11.3897C9.80641 12.1929 8.57299 12.6768 7.22656 12.6768C4.189 12.6768 1.72656 10.2143 1.72656 7.17676ZM11.7266 7.17676C11.7266 4.69147 9.71184 2.67676 7.22656 2.67676C4.74128 2.67676 2.72656 4.69147 2.72656 7.17676C2.72656 9.66205 4.74128 11.6768 7.22656 11.6768C9.71184 11.6768 11.7266 9.66205 11.7266 7.17676Z"
+                    fillRule="evenodd"
+                  />
                 </svg>
               </button>
             </div>
@@ -617,7 +619,7 @@ export function ThreadSidebar({
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => {setSearchQuery(''); setShowFilter(false);}}
+                  onClick={() => { setSearchQuery(''); setShowFilter(false); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full text-[20px] leading-5 text-[#808080] hover:text-[#191919]"
                   aria-label="清除搜索"
                 >
@@ -729,106 +731,106 @@ export function ThreadSidebar({
                     ? ('archive' as const)
                     : undefined;
 
-            // Archived container: render nested project groups
-            if (group.type === 'archived-container') {
+              // Archived container: render nested project groups
+              if (group.type === 'archived-container') {
+                return (
+                  <SectionGroup
+                    key="archived-container"
+                    label={group.label}
+                    icon="archive"
+                    count={group.archivedGroups?.length ?? 0}
+                    isCollapsed={isCollapsed('archived-container')}
+                    onToggle={() => toggleGroup('archived-container')}
+                  >
+                    {group.archivedGroups?.map((sub) => {
+                      const subKey = sub.projectPath ?? sub.type;
+                      return (
+                        <SectionGroup
+                          key={subKey}
+                          label={sub.label}
+                          count={sub.threads.length}
+                          isCollapsed={isCollapsed(subKey)}
+                          onToggle={() => toggleGroup(subKey)}
+                          projectPath={sub.projectPath}
+                          governanceStatus={sub.projectPath ? govHealth[sub.projectPath] : undefined}
+                          onToggleProjectPin={sub.projectPath ? () => toggleProjectPin(sub.projectPath!) : undefined}
+                          isProjectPinned={sub.projectPath ? pinnedProjects.has(sub.projectPath) : undefined}
+                        >
+                          {sub.threads.map((t) => (
+                            <ThreadItem
+                              key={t.id}
+                              id={t.id}
+                              title={t.title}
+                              participants={t.participants}
+                              lastActiveAt={t.lastActiveAt}
+                              isActive={currentThreadId === t.id}
+                              onSelect={handleSelect}
+                              onDelete={handleDeleteRequest}
+                              onRename={handleRename}
+                              onTogglePin={handleTogglePin}
+                              onToggleFavorite={handleToggleFavorite}
+                              onUpdatePreferredCats={handleUpdatePreferredCats}
+                              isPinned={t.pinned}
+                              isFavorited={t.favorited}
+                              threadState={getThreadState(t.id)}
+                              indented
+                              preferredCats={t.preferredCats}
+                              isHubThread={!!t.connectorHubState}
+                              sourceLabel={getThreadSourceLabel(t)}
+                            />
+                          ))}
+                        </SectionGroup>
+                      );
+                    })}
+                  </SectionGroup>
+                );
+              }
+
               return (
                 <SectionGroup
-                  key="archived-container"
+                  key={groupKey}
                   label={group.label}
-                  icon="archive"
-                  count={group.archivedGroups?.length ?? 0}
-                  isCollapsed={isCollapsed('archived-container')}
-                  onToggle={() => toggleGroup('archived-container')}
+                  icon={icon}
+                  count={group.threads.length}
+                  isCollapsed={group.type === 'pinned' || group.type === 'recent' ? false : isCollapsed(groupKey)}
+                  onToggle={group.type === 'pinned' || group.type === 'recent' ? () => { } : () => toggleGroup(groupKey)}
+                  hideToggle={group.type === 'pinned' || group.type === 'recent'}
+                  hideCount={group.type === 'pinned' || group.type === 'recent'}
+                  projectPath={group.projectPath}
+                  governanceStatus={group.projectPath ? govHealth[group.projectPath] : undefined}
+                  onToggleProjectPin={
+                    group.type === 'project' && group.projectPath ? () => toggleProjectPin(group.projectPath!) : undefined
+                  }
+                  isProjectPinned={
+                    group.type === 'project' && group.projectPath ? pinnedProjects.has(group.projectPath) : undefined
+                  }
                 >
-                  {group.archivedGroups?.map((sub) => {
-                    const subKey = sub.projectPath ?? sub.type;
-                    return (
-                      <SectionGroup
-                        key={subKey}
-                        label={sub.label}
-                        count={sub.threads.length}
-                        isCollapsed={isCollapsed(subKey)}
-                        onToggle={() => toggleGroup(subKey)}
-                        projectPath={sub.projectPath}
-                        governanceStatus={sub.projectPath ? govHealth[sub.projectPath] : undefined}
-                        onToggleProjectPin={sub.projectPath ? () => toggleProjectPin(sub.projectPath!) : undefined}
-                        isProjectPinned={sub.projectPath ? pinnedProjects.has(sub.projectPath) : undefined}
-                      >
-                        {sub.threads.map((t) => (
-                          <ThreadItem
-                            key={t.id}
-                            id={t.id}
-                            title={t.title}
-                            participants={t.participants}
-                            lastActiveAt={t.lastActiveAt}
-                            isActive={currentThreadId === t.id}
-                            onSelect={handleSelect}
-                            onDelete={handleDeleteRequest}
-                            onRename={handleRename}
-                            onTogglePin={handleTogglePin}
-                            onToggleFavorite={handleToggleFavorite}
-                            onUpdatePreferredCats={handleUpdatePreferredCats}
-                            isPinned={t.pinned}
-                            isFavorited={t.favorited}
-                            threadState={getThreadState(t.id)}
-                            indented
-                            preferredCats={t.preferredCats}
-                            isHubThread={!!t.connectorHubState}
-                            sourceLabel={getThreadSourceLabel(t)}
-                          />
-                        ))}
-                      </SectionGroup>
-                    );
-                  })}
+                  {group.threads.map((t) => (
+                    <ThreadItem
+                      key={t.id}
+                      id={t.id}
+                      title={t.title}
+                      participants={t.participants}
+                      lastActiveAt={t.lastActiveAt}
+                      isActive={currentThreadId === t.id}
+                      onSelect={handleSelect}
+                      onDelete={handleDeleteRequest}
+                      onRename={handleRename}
+                      onTogglePin={handleTogglePin}
+                      onToggleFavorite={handleToggleFavorite}
+                      onUpdatePreferredCats={handleUpdatePreferredCats}
+                      isPinned={t.pinned}
+                      isFavorited={t.favorited}
+                      threadState={getThreadState(t.id)}
+                      indented={group.type === 'project'}
+                      preferredCats={t.preferredCats}
+                      isHubThread={!!t.connectorHubState}
+                      sourceLabel={getThreadSourceLabel(t)}
+                    />
+                  ))}
                 </SectionGroup>
               );
-            }
-
-            return (
-              <SectionGroup
-                key={groupKey}
-                label={group.label}
-                icon={icon}
-                count={group.threads.length}
-                isCollapsed={group.type === 'pinned' || group.type === 'recent' ? false : isCollapsed(groupKey)}
-                onToggle={group.type === 'pinned' || group.type === 'recent' ? () => {} : () => toggleGroup(groupKey)}
-                hideToggle={group.type === 'pinned' || group.type === 'recent'}
-                hideCount={group.type === 'pinned' || group.type === 'recent'}
-                projectPath={group.projectPath}
-                governanceStatus={group.projectPath ? govHealth[group.projectPath] : undefined}
-                onToggleProjectPin={
-                  group.type === 'project' && group.projectPath ? () => toggleProjectPin(group.projectPath!) : undefined
-                }
-                isProjectPinned={
-                  group.type === 'project' && group.projectPath ? pinnedProjects.has(group.projectPath) : undefined
-                }
-              >
-                {group.threads.map((t) => (
-                  <ThreadItem
-                    key={t.id}
-                    id={t.id}
-                    title={t.title}
-                    participants={t.participants}
-                    lastActiveAt={t.lastActiveAt}
-                    isActive={currentThreadId === t.id}
-                    onSelect={handleSelect}
-                    onDelete={handleDeleteRequest}
-                    onRename={handleRename}
-                    onTogglePin={handleTogglePin}
-                    onToggleFavorite={handleToggleFavorite}
-                    onUpdatePreferredCats={handleUpdatePreferredCats}
-                    isPinned={t.pinned}
-                    isFavorited={t.favorited}
-                    threadState={getThreadState(t.id)}
-                    indented={group.type === 'project'}
-                    preferredCats={t.preferredCats}
-                    isHubThread={!!t.connectorHubState}
-                    sourceLabel={getThreadSourceLabel(t)}
-                  />
-                ))}
-              </SectionGroup>
-            );
-          })
+            })
           )}
 
         </div>

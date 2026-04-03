@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
+import { getMentionToCat } from '@/lib/mention-highlight';
 
 export interface RichSkillOption {
   name: string;
@@ -42,9 +43,12 @@ type Segment =
   | { type: 'mention'; text: string }
   | { type: 'skill'; text: string; iconUrl?: string | null };
 
+const MENTION_TRAILING_PUNCT_RE = /[,:;!?()\[\]{}<>，。！？、：；（）【】《》「」『』〈〉.]+$/;
+
 function buildSegments(value: string, skillOptions: RichSkillOption[]): Segment[] {
   if (!value) return [{ type: 'text', text: '' }];
   const sortedSkills = [...skillOptions].sort((a, b) => b.name.length - a.name.length);
+  const mentionToCat = getMentionToCat();
   const segments: Segment[] = [];
   let cursor = 0;
 
@@ -67,12 +71,19 @@ function buildSegments(value: string, skillOptions: RichSkillOption[]): Segment[
       continue;
     }
 
+    const prev = cursor > 0 ? value[cursor - 1] : ' ';
     const mentionMatch = value.slice(cursor).match(/^@[^\s]+/);
-    if (mentionMatch) {
-      const mention = mentionMatch[0];
-      segments.push({ type: 'mention', text: mention });
-      cursor += mention.length;
-      continue;
+    if (mentionMatch && /\s/.test(prev)) {
+      const rawMention = mentionMatch[0];
+      const trimmedMention = rawMention.replace(MENTION_TRAILING_PUNCT_RE, '');
+      const trailing = rawMention.slice(trimmedMention.length);
+      const alias = trimmedMention.slice(1).toLowerCase();
+      if (alias && mentionToCat[alias]) {
+        segments.push({ type: 'mention', text: trimmedMention });
+        if (trailing) segments.push({ type: 'text', text: trailing });
+        cursor += rawMention.length;
+        continue;
+      }
     }
 
     segments.push({ type: 'text', text: value[cursor] ?? '' });
@@ -256,7 +267,7 @@ export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(fu
   return (
     <div className="relative">
       {!value && placeholder && (
-        <div className="pointer-events-none absolute left-3 top-3 text-sm text-gray-400">{placeholder}</div>
+        <div className="pointer-events-none absolute left-4 top-4 text-[16px] text-gray-400">{placeholder}</div>
       )}
       <div
         ref={rootRef}

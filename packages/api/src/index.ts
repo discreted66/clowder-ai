@@ -239,7 +239,7 @@ async function main(): Promise<void> {
 
   // Create shared service instances for MCP callback flow
   const registry = new InvocationRegistry();
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = process.env.REDIS_URL?.trim() || `redis://localhost:${process.env.REDIS_PORT ?? '6399'}`;
   const redis = redisUrl ? createRedisClient({ url: redisUrl }) : undefined;
   redisClient = redis ?? null;
 

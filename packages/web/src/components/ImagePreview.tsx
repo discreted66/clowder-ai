@@ -42,9 +42,9 @@ export function ImagePreview({ files, onRemove }: ImagePreviewProps) {
 
   return (
     <>
-      <div className="flex gap-2 border-b pt-3 border-gray-100 overflow-visible pb-2 mb-2 mx-4 w-auto">
+      <div className="flex gap-2 border-b pt-5 border-gray-100 overflow-visible pb-3 mb-0 mx-5">
         {files.map((file, i) => (
-          <div key={`${file.name}-${i}`} className="relative inline-flex gap-[10px] py-2 flex-shrink-0 group border border-gray-200 rounded-lg px-2  hover:shadow-md transition-shadow" title={file.name}>
+          <div key={`${file.name}-${i}`} className="relative inline-flex gap-[10px] py-2 flex-shrink-0 group border border-gray-200 rounded-lg px-2  hover:shadow-md hover:border-[rgb(240,240,240)] max-w-[192px]  w-auto h-[56px]" title={file.name}>
             <img
               src={urls[i]}
               alt={file.name}
@@ -61,7 +61,7 @@ export function ImagePreview({ files, onRemove }: ImagePreviewProps) {
               </div>
               <div className="mt-1 text-[12px]" style={{ color: '#808080', fontWeight: 400, lineHeight: '18px' }}>
                 <span>{getFileExt(file.name)}</span>
-                <span className="mx-2"></span>
+                <span className="mx-3"></span>
                 <span>{formatFileSize(file.size)}</span>
               </div>
             </div>

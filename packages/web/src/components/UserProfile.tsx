@@ -154,14 +154,14 @@ export function UserProfile({ className }: UserProfileProps) {
   }, []);
 
   return (
-    <div className={`relative ${className ?? ''}`} ref={panelRef}>
+    <div className={`border-none relative ${className ?? ''}`} ref={panelRef}>
       <button
         type="button"
         onClick={handleTogglePanel}
-        className="group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-gray-50"
+        className="group border-none flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-gray-50"
         data-testid="user-profile-toggle"
       >
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F2F2]">
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#e3e3e3]">
           <span className="text-sm font-bold text-[#191919]">{avatarLetter}</span>
         </div>
 
@@ -172,7 +172,7 @@ export function UserProfile({ className }: UserProfileProps) {
         </div>
 
         <svg
-          className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${showPanel ? 'rotate-90' : ''}`}
+          className={`h-4 w-4 shrink-0 text-[#191919] transition-transform ${showPanel ? 'rotate-90' : ''}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -190,7 +190,7 @@ export function UserProfile({ className }: UserProfileProps) {
           <div className="p-4" data-testid="user-profile-panel-scroll" ref={panelScrollRef}>
             <div className="mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F2F2F2]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e3e3e3]">
                   <span className="text-base font-bold text-[#191919]">{avatarLetter}</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -276,7 +276,7 @@ export function UserProfile({ className }: UserProfileProps) {
                           className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white"
                           data-testid={`user-theme-selected-badge-${option.id}`}
                         >
-                          <svg className="h-2.5 w-2.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                          <svg className="h-2.5 w-2.5" viewBox="0 0 16 16" fill="#191919" aria-hidden="true">
                             <path
                               d="M4 8.25 6.5 10.75 12 5.25"
                               stroke="currentColor"

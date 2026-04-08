@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCatData } from '@/hooks/useCatData';
 import { getMentionLabel, getMentionRe, getMentionToCat } from '@/lib/mention-highlight';
 import type { ThreadState } from '@/stores/chat-types';
@@ -104,9 +104,7 @@ export function ThreadItem({
   onDelete,
   onRename,
   onTogglePin,
-  onToggleFavorite,
   isPinned,
-  isFavorited,
   threadState,
   indented,
   preferredCats,
@@ -120,7 +118,6 @@ export function ThreadItem({
   const canDelete = id !== 'default' && onDelete;
   const canRename = id !== 'default' && onRename;
   const canPin = id !== 'default' && onTogglePin;
-  const canFavorite = id !== 'default' && onToggleFavorite;
 
   const [isSaving, setIsSaving] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
@@ -239,6 +236,15 @@ export function ThreadItem({
   const tooltip = tooltipLines.join('\n');
   const contextMenuItemClass =
     'block w-full whitespace-nowrap px-3 py-2 text-left text-xs transition-colors hover:bg-[rgba(245,245,245,1)] focus-visible:bg-[rgba(245,245,245,1)] focus-visible:outline-none';
+  const openContextMenu = useCallback((clientX: number, clientY: number, anchorY?: number) => {
+    setContextMenu({
+      x: clientX + 10,
+      y: clientY + 10,
+      anchorX: clientX,
+      anchorY: anchorY ?? clientY,
+      arrowY: 16,
+    });
+  }, []);
 
   return (
     <div
@@ -250,13 +256,7 @@ export function ThreadItem({
         e.preventDefault();
         e.stopPropagation();
         const itemRect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-        setContextMenu({
-          x: e.clientX + 10,
-          y: e.clientY + 10,
-          anchorX: e.clientX,
-          anchorY: itemRect.top + itemRect.height / 2,
-          arrowY: 16,
-        });
+        openContextMenu(e.clientX, e.clientY, itemRect.top + itemRect.height / 2);
       }}
       title={tooltip}
     >
@@ -313,7 +313,7 @@ export function ThreadItem({
           )}
           {showUnreadBadge && (
             <span
-              className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-[10px] font-medium leading-none text-white"
+              className="absolute -right-1 border -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-[10px] font-medium leading-none text-white"
               aria-label={`未读消息 ${unreadCount}`}
             >
               {unreadLabel}
@@ -333,7 +333,28 @@ export function ThreadItem({
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="block min-w-0 flex-1 truncate text-[12px] text-[#808080]">{description}</span>
             <div className="flex shrink-0 items-center gap-1.5">
-              <span className="ui-thread-meta shrink-0 text-[#808080]">{formatRelativeTime(lastActiveAt, true)}</span>
+              <span className="ui-thread-meta shrink-0 text-[#808080] group-hover:hidden">
+                {formatRelativeTime(lastActiveAt, true)}
+              </span>
+              <button
+                type="button"
+                aria-label="更多操作"
+                className={`h-4 w-4 items-center justify-center rounded text-[#808080] hover:bg-[rgba(0,0,0,0.05)] ${
+                  contextMenu ? 'inline-flex' : 'hidden group-hover:inline-flex focus-visible:inline-flex'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                  openContextMenu(rect.right, rect.top + rect.height / 2, rect.top + rect.height / 2);
+                }}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <circle cx="10" cy="4.5" r="1.4" />
+                  <circle cx="10" cy="10" r="1.4" />
+                  <circle cx="10" cy="15.5" r="1.4" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -350,16 +371,6 @@ export function ThreadItem({
             e.stopPropagation();
           }}
         >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -left-[6px] h-0 w-0 border-y-[6px] border-y-transparent border-r-[6px] border-r-[var(--border-default)]"
-            style={{ top: contextMenu.arrowY - 6 }}
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -left-[5px] h-0 w-0 border-y-[5px] border-y-transparent border-r-[5px] border-r-[var(--surface-panel)]"
-            style={{ top: contextMenu.arrowY - 5 }}
-          />
           {canRename && (
             <button
               type="button"
@@ -384,19 +395,6 @@ export function ThreadItem({
               className={contextMenuItemClass}
             >
               {isPinned ? '取消置顶' : '置顶'}
-            </button>
-          )}
-
-          {canFavorite && (
-            <button
-              type="button"
-              onClick={() => {
-                setContextMenu(null);
-                void onToggleFavorite?.(id, !isFavorited);
-              }}
-              className={contextMenuItemClass}
-            >
-              {isFavorited ? '取消收藏' : '收藏'}
             </button>
           )}
 

@@ -36,6 +36,7 @@ export interface RichTextareaHandle {
   getSelectionEnd: () => number;
   setSelectionRange: (start: number, end: number) => void;
   getElement: () => HTMLDivElement | null;
+  getClientRectAtOffset: (offset: number) => DOMRect | null;
 }
 
 type Segment =
@@ -185,6 +186,40 @@ function setSelectionOffset(root: HTMLElement, start: number, end: number): void
   sel.addRange(range);
 }
 
+function resolvePositionAtOffset(root: HTMLElement, offset: number): { node: Node; offset: number } {
+  const nodes = collectTextNodes(root);
+  for (const item of nodes) {
+    if (offset <= item.end) {
+      if (item.node.nodeType === Node.TEXT_NODE) {
+        const textLength = (item.node.textContent ?? '').length;
+        return { node: item.node, offset: Math.max(0, Math.min(textLength, offset - item.start)) };
+      }
+      const parent = item.node.parentNode;
+      if (parent) {
+        const idx = Array.prototype.indexOf.call(parent.childNodes, item.node);
+        if (offset - item.start <= 0) return { node: parent, offset: idx };
+        return { node: parent, offset: idx + 1 };
+      }
+    }
+  }
+  return { node: root, offset: root.childNodes.length };
+}
+
+function getClientRectAtOffset(root: HTMLElement, offset: number): DOMRect | null {
+  try {
+    const pos = resolvePositionAtOffset(root, offset);
+    const range = document.createRange();
+    range.setStart(pos.node, pos.offset);
+    range.setEnd(pos.node, pos.offset);
+    const rect = range.getBoundingClientRect();
+    if (rect.width !== 0 || rect.height !== 0) return rect;
+    const fallback = root.getBoundingClientRect();
+    return fallback.width > 0 || fallback.height > 0 ? fallback : null;
+  } catch {
+    return null;
+  }
+}
+
 export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(function RichTextarea(
   {
     value,
@@ -203,6 +238,7 @@ export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(fu
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isComposingRef = useRef(false);
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const segments = useMemo(() => buildSegments(value, skillOptions), [value, skillOptions]);
   const segmentSignature = useMemo(
     () =>
@@ -234,6 +270,11 @@ export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(fu
       setSelectionOffset(root, start, end);
     },
     getElement: () => rootRef.current,
+    getClientRectAtOffset: (offset: number) => {
+      const root = rootRef.current;
+      if (!root) return null;
+      return getClientRectAtOffset(root, offset);
+    },
   }));
 
   useLayoutEffect(() => {
@@ -246,8 +287,10 @@ export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(fu
     if (current === value && currentSignature === segmentSignature) return;
 
     const active = document.activeElement === root;
-    const start = active ? getSelectionOffset(root, false) : 0;
-    const end = active ? getSelectionOffset(root, true) : 0;
+    const pendingSelection = active ? pendingSelectionRef.current : null;
+    const start = active ? (pendingSelection?.start ?? getSelectionOffset(root, false)) : 0;
+    const end = active ? (pendingSelection?.end ?? getSelectionOffset(root, true)) : 0;
+    if (pendingSelection) pendingSelectionRef.current = null;
 
     const frag = document.createDocumentFragment();
     for (const seg of segments) {
@@ -343,7 +386,8 @@ export const RichTextarea = forwardRef<RichTextareaHandle, RichTextareaProps>(fu
           const start = getSelectionOffset(root, false);
           const end = getSelectionOffset(root, true);
           const next = `${value.slice(0, start)}${plain}${value.slice(end)}`;
-          const caret = start + plain.length;
+          const caret = next.length;
+          pendingSelectionRef.current = { start: caret, end: caret };
           onValueChange(next, caret, caret);
           onInput?.();
         }}

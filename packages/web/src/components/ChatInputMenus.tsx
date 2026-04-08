@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { type CatOption, GAME_LIST, WEREWOLF_MODES } from './chat-input-options';
 
 /** SVG icon components for game menu — no emoji (design fidelity rule). */
@@ -57,6 +57,7 @@ interface ChatInputMenusProps {
   showMentions: boolean;
   mentionFilter: string;
   onMentionFilterChange: (value: string) => void;
+  onCloseMentionMenu: () => void;
   showGameMenu: boolean;
   gameStep: 'list' | 'modes';
   onGameStepChange: (step: 'list' | 'modes') => void;
@@ -65,6 +66,7 @@ interface ChatInputMenusProps {
   onInsertMention: (opt: CatOption) => void;
   onSendCommand: (command: string) => void;
   menuRef: RefObject<HTMLDivElement>;
+  mentionMenuStyle?: CSSProperties;
 }
 
 export function ChatInputMenus({
@@ -72,6 +74,7 @@ export function ChatInputMenus({
   showMentions,
   mentionFilter,
   onMentionFilterChange,
+  onCloseMentionMenu,
   showGameMenu,
   gameStep,
   onGameStepChange,
@@ -80,6 +83,7 @@ export function ChatInputMenus({
   onInsertMention,
   onSendCommand,
   menuRef,
+  mentionMenuStyle,
 }: ChatInputMenusProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollDown, setCanScrollDown] = useState(false);
@@ -114,7 +118,8 @@ export function ChatInputMenus({
       {showMentions && (
         <div
           ref={menuRef}
-          className="absolute bottom-full left-4 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden w-[200px] z-10 flex flex-col p-2"
+          className="fixed bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden w-[200px] z-20 flex flex-col p-2"
+          style={mentionMenuStyle}
         >
           <div className="px-1 pt-0 pb-2">
             <div className="relative">
@@ -131,6 +136,35 @@ export function ChatInputMenus({
               <input
                 value={mentionFilter}
                 onChange={(e) => onMentionFilterChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (catOptions.length === 0) {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      onCloseMentionMenu();
+                    }
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    onSelectIdx((selectedIdx + 1) % catOptions.length);
+                    return;
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    onSelectIdx((selectedIdx - 1 + catOptions.length) % catOptions.length);
+                    return;
+                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    const opt = catOptions[selectedIdx];
+                    if (opt) onInsertMention(opt);
+                    return;
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    onCloseMentionMenu();
+                  }
+                }}
                 placeholder="请输入关键字搜索"
                 className="ui-input ui-input-underline w-full py-1 pl-6 pr-0 text-sm"
               />
@@ -141,7 +175,7 @@ export function ChatInputMenus({
               <button
                 key={opt.id}
                 ref={i === selectedIdx ? selectedRef : undefined}
-                className={`w-full h-[34px] text-left p-2 rounded-[6px] flex items-center gap-2 transition-colors ${i === selectedIdx ? 'bg-[rgba(240,247,255,1)]' : 'hover:bg-[rgba(240,247,255,0.1)]'}`}
+                className={`w-full h-[34px] text-left p-2 rounded-[6px] flex items-center gap-2 transition-colors ${i === selectedIdx ? 'bg-[rgba(245,245,245,1)]' : 'hover:bg-[rgba(245,245,245,1)]'}`}
                 onMouseEnter={() => onSelectIdx(i)}
                 onMouseDown={(e) => {
                   e.preventDefault();

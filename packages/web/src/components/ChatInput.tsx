@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useRouter } from 'next/navigation';
-import { KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCatData } from '@/hooks/useCatData';
 import { reconnectGame } from '@/hooks/useGameReconnect';
 import { usePathCompletion } from '@/hooks/usePathCompletion';
@@ -65,7 +65,7 @@ const ACCEPTED_TYPES = 'image/png,image/jpeg,image/gif,image/webp';
 const QUICK_ACTIONS = ['文档处理', '视频生成', '深度研究', '幻灯片', '数据分析', '数据可视化', '金融服务'] as const;
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const TEXTAREA_MIN_HEIGHT = 70;
-const TEXTAREA_MAX_HEIGHT = 253;
+const TEXTAREA_MAX_HEIGHT = 260;
 
 function normalizeMentionsForSend(input: string, catOptions: CatOption[]): string {
   let output = input;
@@ -144,6 +144,7 @@ export function ChatInput({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [mentionStart, setMentionStart] = useState(-1);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionMenuStyle, setMentionMenuStyle] = useState<CSSProperties>({});
   const [skillFilter, setSkillFilter] = useState('');
   const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
   const [skillOptionsLoading, setSkillOptionsLoading] = useState(false);
@@ -290,6 +291,25 @@ export function ChatInput({
     setShowSkillMenu(false);
     setSkillFilter('');
   }, []);
+
+  const updateMentionMenuPosition = useCallback(() => {
+    if (!showMentions) return;
+    const ta = textareaRef.current;
+    const root = ta?.getElement();
+    if (!root) return;
+    const offset = mentionStart >= 0 ? mentionStart : ta?.getSelectionStart() ?? 0;
+    const anchorRect = ta?.getClientRectAtOffset(offset) ?? root.getBoundingClientRect();
+    const menuWidth = 200;
+    const menuHeight = Math.max(120, menuRef.current?.offsetHeight ?? 220);
+    const viewportPadding = 8;
+    const desiredLeft = anchorRect.left;
+    const desiredTop = anchorRect.top - menuHeight - 8;
+    const maxLeft = window.innerWidth - menuWidth - viewportPadding;
+    const maxTop = window.innerHeight - menuHeight - viewportPadding;
+    const left = Math.min(Math.max(desiredLeft, viewportPadding), Math.max(viewportPadding, maxLeft));
+    const top = Math.min(Math.max(desiredTop, viewportPadding), Math.max(viewportPadding, maxTop));
+    setMentionMenuStyle({ left, top });
+  }, [showMentions, mentionStart]);
 
   const router = useRouter();
   const [gameStarting, setGameStarting] = useState(false);
@@ -659,6 +679,21 @@ export function ChatInput({
     resizeTextarea();
   }, [input, resizeTextarea]);
 
+  useLayoutEffect(() => {
+    updateMentionMenuPosition();
+  }, [updateMentionMenuPosition, input, mentionFilter, showMentions]);
+
+  useEffect(() => {
+    if (!showMentions) return;
+    const onWindowChange = () => updateMentionMenuPosition();
+    window.addEventListener('resize', onWindowChange);
+    window.addEventListener('scroll', onWindowChange, true);
+    return () => {
+      window.removeEventListener('resize', onWindowChange);
+      window.removeEventListener('scroll', onWindowChange, true);
+    };
+  }, [showMentions, updateMentionMenuPosition]);
+
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
@@ -771,14 +806,15 @@ export function ChatInput({
     <div className="relative safe-area-bottom bg-transparent">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-1/2 z-0 h-[100px] -translate-x-1/2 opacity-[0.2] blur-[80px]"
+        className="pointer-events-none absolute bottom-0 left-1/2 z-0 h-[100px] -translate-x-1/2 opacity-[0.5] blur-[80px]"
         style={{
           borderRadius: '490px',
           width: 'calc(80% - 80px)',
           background:
             'linear-gradient(90deg,rgba(255,246,190,1),rgba(253,159,112,1) 20%,rgba(239,131,250,1) 43%,rgba(128,134,254,1) 73%,rgba(160,244,255,1) 97%)',
         }}
-      />
+      >
+      </div>
       {/* F39: Queue status bar — visible when cat is running */}
       {hasActiveInvocation && (
         <div className="px-4 pt-2 hidden items-center gap-2 mx-auto w-[80%]">
@@ -809,6 +845,10 @@ export function ChatInput({
           setMentionFilter(value);
           setSelectedIdx(0);
         }}
+        onCloseMentionMenu={() => {
+          closeMenus();
+          setMentionFilter('');
+        }}
         showGameMenu={showGameMenu}
         gameStep={gameStep}
         onGameStepChange={setGameStep}
@@ -826,6 +866,7 @@ export function ChatInput({
           setLobbyMode(role as 'player' | 'god-view' | 'detective');
         }}
         menuRef={menuRef}
+        mentionMenuStyle={mentionMenuStyle}
       />
 
       {imageLifecycleStatus === 'preparing' && (
@@ -896,7 +937,7 @@ export function ChatInput({
         />
       )}
 
-      <div className="relative z-10 px-4 pt-2 pb-[44px] mx-auto w-[80%]">
+      <div className="relative z-10 px-4 pt-2 mx-auto w-[80%]">
         <div className="flex gap-2 items-end">
           {/* Mobile: + toggle button */}
           <button
@@ -933,41 +974,42 @@ export function ChatInput({
                 ))}
               </div>
 
-              <div
-                className={`relative min-h-[114px] overflow-visible rounded-[24px] border bg-white transition-colors ${
-                  whisperMode
-                    ? 'border-amber-300 bg-amber-50/50 focus-within:border-amber-400'
-                    : 'border-[#dbdbdb] focus-within:border-[#dbdbdb]'
-                }`}
-              >
-                <ImagePreview files={images} onRemove={handleRemoveImage} />
-                <div className="relative overflow-hidden rounded-t-[24px]">
-                  <RichTextarea
-                    ref={textareaRef}
-                    value={input}
-                    onValueChange={handleChange}
-                    onInput={resizeTextarea}
-                    onKeyDown={handleKeyDown}
-                    onPaste={handlePaste}
-                    onScroll={handleTextareaScroll}
-                    placeholder={hasActiveInvocation ? '继续输入，消息进入排队中' : '描述你想研究的主题或@助手协助工作'}
-                    className="block min-h-[70px] w-full bg-transparent p-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[16px] placeholder:text-gray-400 focus:outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
-                    disabled={disabled}
-                    skillOptions={skillOptions}
-                  />
-                  {ghostSuggestion && !pathCompletion.isOpen && !showMentions && !/(^|\s)@/.test(input) && (
-                    <div
-                      data-testid="ghost-suggestion"
-                      className="pointer-events-none absolute inset-0 w-full overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-t-[24px] p-4 text-[16px]"
-                      aria-hidden="true"
-                    >
-                      <span className="invisible">{input}</span>
-                      <span className="text-gray-400">{ghostSuggestion.slice(input.length)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="px-[10px] py-2">
-                  <div className="flex items-center justify-between gap-2">
+              <div className="relative">
+                <div
+                  className={`relative min-h-[114px] overflow-visible rounded-[24px] border bg-white transition-colors ${
+                    whisperMode
+                      ? 'border-amber-300 bg-amber-50/50 focus-within:border-amber-400'
+                      : 'border-[#dbdbdb] focus-within:border-[#dbdbdb]'
+                  }`}
+                >
+                  <ImagePreview files={images} onRemove={handleRemoveImage} />
+                  <div className="relative overflow-hidden rounded-t-[24px]">
+                    <RichTextarea
+                      ref={textareaRef}
+                      value={input}
+                      onValueChange={handleChange}
+                      onInput={resizeTextarea}
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      onScroll={handleTextareaScroll}
+                      placeholder={hasActiveInvocation ? '继续输入，消息进入排队中' : '描述你想研究的主题或@助手协助工作'}
+                      className="block min-h-[70px] w-full bg-transparent p-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[16px] placeholder:text-gray-400 focus:outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+                      disabled={disabled}
+                      skillOptions={skillOptions}
+                    />
+                    {ghostSuggestion && !pathCompletion.isOpen && !showMentions && !/(^|\s)@/.test(input) && (
+                      <div
+                        data-testid="ghost-suggestion"
+                        className="pointer-events-none absolute inset-0 w-full overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-t-[24px] p-4 text-[16px]"
+                        aria-hidden="true"
+                      >
+                        <span className="invisible">{input}</span>
+                        <span className="text-gray-400">{ghostSuggestion.slice(input.length)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-[10px] pb-[10px]">
+                    <div className="flex items-center justify-between gap-2">
                     <div className="relative">
                       <button
                         ref={skillBtnRef}
@@ -1035,7 +1077,7 @@ export function ChatInput({
                               />
                             </div>
                           </div>
-                          <div className="max-h-[254px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
+                          <div className="max-h-[260px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
                             {skillOptionsLoading &&
                               Array.from({ length: 5 }).map((_, i) => (
                                 <div
@@ -1055,7 +1097,7 @@ export function ChatInput({
                                   ref={(node) => {
                                     skillOptionRefs.current[i] = node;
                                   }}
-                                  className={`flex h-[34px] w-full items-center gap-2 rounded-[6px] p-2 text-left text-[12px] font-normal text-[#191919] transition-colors ${i === selectedIdx ? 'bg-[rgba(240,247,255,1)]' : 'hover:bg-[rgba(240,247,255,0.1)]'
+                                  className={`flex h-[34px] w-full items-center gap-2 rounded-[6px] p-2 text-left text-[12px] font-normal text-[#191919] transition-colors ${i === selectedIdx ? 'bg-[rgba(245,245,245,1)]' : 'hover:bg-[rgba(245,245,245,1)]'
                                     }`}
                                   onMouseDown={(e) => {
                                     e.preventDefault();
@@ -1112,7 +1154,7 @@ export function ChatInput({
                           data-testid="folder-select-button"
                           onClick={onOpenFolderPicker}
                           disabled={isFolderButtonDisabled}
-                          className="ui-button-default inline-flex h-7 max-w-[160px] items-center gap-1 rounded-[16px] px-3 text-xs shadow-none disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+                          className="ui-button-default inline-flex h-8 max-w-[160px] items-center gap-1 rounded-[16px] px-3 text-xs shadow-none disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
                         >
                           <FolderBadgeIcon className="h-6 w-6 shrink-0" />
                           <span className="truncate">{folderButtonLabel}</span>
@@ -1138,8 +1180,12 @@ export function ChatInput({
                         hasText={!!input.trim()}
                       />
                     </div>
+                    </div>
                   </div>
                 </div>
+              <p className="mt-2 mb-4 text-center text-[12px] font-normal leading-[20px] text-[rgb(194,194,194)]">
+                内容由AI生成，仅供参考
+              </p>
               </div>
             </div>
           </div>
